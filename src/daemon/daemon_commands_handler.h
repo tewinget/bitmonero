@@ -106,7 +106,7 @@ private:
   //--------------------------------------------------------------------------------
   bool save(const std::vector<std::string>& args)
   {
-    m_srv.get_payload_object().get_core().get_blockchain_storage().store_blockchain();
+    m_srv.get_payload_object().get_core().get_Blockchain().store_blockchain();
     return true;
   }
   //--------------------------------------------------------------------------------
@@ -130,8 +130,8 @@ private:
   //--------------------------------------------------------------------------------
   bool diff(const std::vector<std::string>& args)
   {
-	  cryptonote::difficulty_type difficulty = m_srv.get_payload_object().get_core().get_blockchain_storage().get_difficulty_for_next_block();
-	  uint64_t height = m_srv.get_payload_object().get_core().get_blockchain_storage().get_current_blockchain_height();
+	  cryptonote::difficulty_type difficulty = m_srv.get_payload_object().get_core().get_Blockchain().get_difficulty_for_next_block();
+	  uint64_t height = m_srv.get_payload_object().get_core().get_Blockchain().get_current_blockchain_height();
 
 	  LOG_PRINT_GREEN("BH: " << height << ", DIFF: " << difficulty 
 		  << ", HR: " << (int) difficulty / 60L << " H/s", LOG_LEVEL_0);

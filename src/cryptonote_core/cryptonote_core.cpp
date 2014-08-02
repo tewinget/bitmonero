@@ -49,8 +49,8 @@ namespace cryptonote
 
   //-----------------------------------------------------------------------------------------------
   core::core(i_cryptonote_protocol* pprotocol):
-              m_mempool(m_blockchain_storage),
-              m_blockchain_storage(m_mempool),
+              m_mempool(m_Blockchain),
+              m_Blockchain(m_mempool),
               m_miner(this),
               m_miner_address(boost::value_initialized<account_public_address>()), 
               m_starter_message_showed(false),
@@ -68,7 +68,7 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------
   void core::set_checkpoints(checkpoints&& chk_pts)
   {
-    m_blockchain_storage.set_checkpoints(std::move(chk_pts));
+    m_Blockchain.set_checkpoints(std::move(chk_pts));
   }
   //-----------------------------------------------------------------------------------
   void core::init_options(boost::program_options::options_description& /*desc*/)
@@ -83,37 +83,37 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   uint64_t core::get_current_blockchain_height()
   {
-    return m_blockchain_storage.get_current_blockchain_height();
+    return m_Blockchain.get_current_blockchain_height();
   }
   //-----------------------------------------------------------------------------------------------
   bool core::get_blockchain_top(uint64_t& height, crypto::hash& top_id)
   {
-    top_id = m_blockchain_storage.get_tail_id(height);
+    top_id = m_Blockchain.get_tail_id(height);
     return true;
   }
   //-----------------------------------------------------------------------------------------------
   bool core::get_blocks(uint64_t start_offset, size_t count, std::list<block>& blocks, std::list<transaction>& txs)
   {
-    return m_blockchain_storage.get_blocks(start_offset, count, blocks, txs);
+    return m_Blockchain.get_blocks(start_offset, count, blocks, txs);
   }
   //-----------------------------------------------------------------------------------------------
   bool core::get_blocks(uint64_t start_offset, size_t count, std::list<block>& blocks)
   {
-    return m_blockchain_storage.get_blocks(start_offset, count, blocks);
+    return m_Blockchain.get_blocks(start_offset, count, blocks);
   }  //-----------------------------------------------------------------------------------------------
   bool core::get_transactions(const std::vector<crypto::hash>& txs_ids, std::list<transaction>& txs, std::list<crypto::hash>& missed_txs)
   {
-    return m_blockchain_storage.get_transactions(txs_ids, txs, missed_txs);
+    return m_Blockchain.get_transactions(txs_ids, txs, missed_txs);
   }
   //-----------------------------------------------------------------------------------------------
   bool core::get_alternative_blocks(std::list<block>& blocks)
   {
-    return m_blockchain_storage.get_alternative_blocks(blocks);
+    return m_Blockchain.get_alternative_blocks(blocks);
   }
   //-----------------------------------------------------------------------------------------------
   size_t core::get_alternative_blocks_count()
   {
-    return m_blockchain_storage.get_alternative_blocks_count();
+    return m_Blockchain.get_alternative_blocks_count();
   }
   //-----------------------------------------------------------------------------------------------
   bool core::init(const boost::program_options::variables_map& vm)
@@ -123,7 +123,7 @@ namespace cryptonote
     r = m_mempool.init(m_config_folder);
     CHECK_AND_ASSERT_MES(r, false, "Failed to initialize memory pool");
 
-    r = m_blockchain_storage.init(m_config_folder);
+    r = m_Blockchain.init(m_config_folder);
     CHECK_AND_ASSERT_MES(r, false, "Failed to initialize blockchain storage");
 
     r = m_miner.init(vm);
@@ -134,7 +134,7 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   bool core::set_genesis_block(const block& b)
   {
-    return m_blockchain_storage.reset_and_set_genesis_block(b);
+    return m_Blockchain.reset_and_set_genesis_block(b);
   }
   //-----------------------------------------------------------------------------------------------
   bool core::load_state_data()
@@ -147,7 +147,7 @@ namespace cryptonote
   {
     m_miner.stop();
     m_mempool.deinit();
-    m_blockchain_storage.deinit();
+    m_Blockchain.deinit();
     return true;
   }
   //-----------------------------------------------------------------------------------------------
@@ -204,10 +204,10 @@ namespace cryptonote
   bool core::get_stat_info(core_stat_info& st_inf)
   {
     st_inf.mining_speed = m_miner.get_speed();
-    st_inf.alternative_blocks = m_blockchain_storage.get_alternative_blocks_count();
-    st_inf.blockchain_height = m_blockchain_storage.get_current_blockchain_height();
+    st_inf.alternative_blocks = m_Blockchain.get_alternative_blocks_count();
+    st_inf.blockchain_height = m_Blockchain.get_current_blockchain_height();
     st_inf.tx_pool_size = m_mempool.get_transactions_count();
-    st_inf.top_block_id_str = epee::string_tools::pod_to_hex(m_blockchain_storage.get_tail_id());
+    st_inf.top_block_id_str = epee::string_tools::pod_to_hex(m_Blockchain.get_tail_id());
     return true;
   }
 
@@ -248,16 +248,16 @@ namespace cryptonote
       return false;
     }
 
-    if(!keeped_by_block && get_object_blobsize(tx) >= m_blockchain_storage.get_current_comulative_blocksize_limit() - CRYPTONOTE_COINBASE_BLOB_RESERVED_SIZE)
+    if(!keeped_by_block && get_object_blobsize(tx) >= m_Blockchain.get_current_comulative_blocksize_limit() - CRYPTONOTE_COINBASE_BLOB_RESERVED_SIZE)
     {
-      LOG_PRINT_RED_L0("tx have to big size " << get_object_blobsize(tx) << ", expected not bigger than " << m_blockchain_storage.get_current_comulative_blocksize_limit() - CRYPTONOTE_COINBASE_BLOB_RESERVED_SIZE);
+      LOG_PRINT_RED_L0("tx have to big size " << get_object_blobsize(tx) << ", expected not bigger than " << m_Blockchain.get_current_comulative_blocksize_limit() - CRYPTONOTE_COINBASE_BLOB_RESERVED_SIZE);
       return false;
     }
 
     //check if tx use different key images
     if(!check_tx_inputs_keyimages_diff(tx))
     {
-      LOG_PRINT_RED_L0("tx have to big size " << get_object_blobsize(tx) << ", expected not bigger than " << m_blockchain_storage.get_current_comulative_blocksize_limit() - CRYPTONOTE_COINBASE_BLOB_RESERVED_SIZE);
+      LOG_PRINT_RED_L0("tx have to big size " << get_object_blobsize(tx) << ", expected not bigger than " << m_Blockchain.get_current_comulative_blocksize_limit() - CRYPTONOTE_COINBASE_BLOB_RESERVED_SIZE);
       return false;
     }
 
@@ -288,12 +288,12 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   size_t core::get_blockchain_total_transactions()
   {
-    return m_blockchain_storage.get_total_transactions();
+    return m_Blockchain.get_total_transactions();
   }
   //-----------------------------------------------------------------------------------------------
   //bool core::get_outs(uint64_t amount, std::list<crypto::public_key>& pkeys)
   //{
-  //  return m_blockchain_storage.get_outs(amount, pkeys);
+  //  return m_Blockchain.get_outs(amount, pkeys);
   //}
   //-----------------------------------------------------------------------------------------------
   bool core::add_new_tx(const transaction& tx, const crypto::hash& tx_hash, const crypto::hash& tx_prefix_hash, size_t blob_size, tx_verification_context& tvc, bool keeped_by_block)
@@ -304,7 +304,7 @@ namespace cryptonote
       return true;
     }
 
-    if(m_blockchain_storage.have_tx(tx_hash))
+    if(m_Blockchain.have_tx(tx_hash))
     {
       LOG_PRINT_L2("tx " << tx_hash << " already have transaction in blockchain");
       return true;
@@ -315,42 +315,42 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   bool core::get_block_template(block& b, const account_public_address& adr, difficulty_type& diffic, uint64_t& height, const blobdata& ex_nonce)
   {
-    return m_blockchain_storage.create_block_template(b, adr, diffic, height, ex_nonce);
+    return m_Blockchain.create_block_template(b, adr, diffic, height, ex_nonce);
   }
   //-----------------------------------------------------------------------------------------------
   bool core::find_blockchain_supplement(const std::list<crypto::hash>& qblock_ids, NOTIFY_RESPONSE_CHAIN_ENTRY::request& resp)
   {
-    return m_blockchain_storage.find_blockchain_supplement(qblock_ids, resp);
+    return m_Blockchain.find_blockchain_supplement(qblock_ids, resp);
   }
   //-----------------------------------------------------------------------------------------------
   bool core::find_blockchain_supplement(const uint64_t req_start_block, const std::list<crypto::hash>& qblock_ids, std::list<std::pair<block, std::list<transaction> > >& blocks, uint64_t& total_height, uint64_t& start_height, size_t max_count)
   {
-    return m_blockchain_storage.find_blockchain_supplement(req_start_block, qblock_ids, blocks, total_height, start_height, max_count);
+    return m_Blockchain.find_blockchain_supplement(req_start_block, qblock_ids, blocks, total_height, start_height, max_count);
   }
   //-----------------------------------------------------------------------------------------------
   void core::print_blockchain(uint64_t start_index, uint64_t end_index)
   {
-    m_blockchain_storage.print_blockchain(start_index, end_index);
+    m_Blockchain.print_blockchain(start_index, end_index);
   }
   //-----------------------------------------------------------------------------------------------
   void core::print_blockchain_index()
   {
-    m_blockchain_storage.print_blockchain_index();
+    m_Blockchain.print_blockchain_index();
   }
   //-----------------------------------------------------------------------------------------------
   void core::print_blockchain_outs(const std::string& file)
   {
-    m_blockchain_storage.print_blockchain_outs(file);
+    m_Blockchain.print_blockchain_outs(file);
   }
   //-----------------------------------------------------------------------------------------------
   bool core::get_random_outs_for_amounts(const COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::request& req, COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::response& res)
   {
-    return m_blockchain_storage.get_random_outs_for_amounts(req, res);
+    return m_Blockchain.get_random_outs_for_amounts(req, res);
   }
   //-----------------------------------------------------------------------------------------------
   bool core::get_tx_outputs_gindexs(const crypto::hash& tx_id, std::vector<uint64_t>& indexs)
   {
-    return m_blockchain_storage.get_tx_outputs_gindexs(tx_id, indexs);
+    return m_Blockchain.get_tx_outputs_gindexs(tx_id, indexs);
   }
   //-----------------------------------------------------------------------------------------------
   void core::pause_mine()
@@ -367,7 +367,7 @@ namespace cryptonote
   {
     block_verification_context bvc = boost::value_initialized<block_verification_context>();
     m_miner.pause();
-    m_blockchain_storage.add_new_block(b, bvc);
+    m_Blockchain.add_new_block(b, bvc);
     //anyway - update miner template
     update_miner_block_template();
     m_miner.resume();
@@ -379,11 +379,11 @@ namespace cryptonote
       cryptonote_connection_context exclude_context = boost::value_initialized<cryptonote_connection_context>();
       NOTIFY_NEW_BLOCK::request arg = AUTO_VAL_INIT(arg);
       arg.hop = 0;
-      arg.current_blockchain_height = m_blockchain_storage.get_current_blockchain_height();
+      arg.current_blockchain_height = m_Blockchain.get_current_blockchain_height();
       std::list<crypto::hash> missed_txs;
       std::list<transaction> txs;
-      m_blockchain_storage.get_transactions(b.tx_hashes, txs, missed_txs);
-      if(missed_txs.size() &&  m_blockchain_storage.get_block_id_by_height(get_block_height(b)) != get_block_hash(b))
+      m_Blockchain.get_transactions(b.tx_hashes, txs, missed_txs);
+      if(missed_txs.size() &&  m_Blockchain.get_block_id_by_height(get_block_height(b)) != get_block_hash(b))
       {
         LOG_PRINT_L0("Block found but, seems that reorganize just happened after that, do not relay this block");
         return true;
@@ -407,12 +407,12 @@ namespace cryptonote
   }
   //bool core::get_backward_blocks_sizes(uint64_t from_height, std::vector<size_t>& sizes, size_t count)
   //{
-  //  return m_blockchain_storage.get_backward_blocks_sizes(from_height, sizes, count);
+  //  return m_Blockchain.get_backward_blocks_sizes(from_height, sizes, count);
   //}
   //-----------------------------------------------------------------------------------------------
   bool core::add_new_block(const block& b, block_verification_context& bvc)
   {
-    return m_blockchain_storage.add_new_block(b, bvc);
+    return m_Blockchain.add_new_block(b, bvc);
   }
   //-----------------------------------------------------------------------------------------------
   bool core::handle_incoming_block(const blobdata& block_blob, block_verification_context& bvc, bool update_miner_blocktemplate)
@@ -452,7 +452,7 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   crypto::hash core::get_tail_id()
   {
-    return m_blockchain_storage.get_tail_id();
+    return m_Blockchain.get_tail_id();
   }
   //-----------------------------------------------------------------------------------------------
   size_t core::get_pool_transactions_count()
@@ -462,7 +462,7 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   bool core::have_block(const crypto::hash& id)
   {
-    return m_blockchain_storage.have_block(id);
+    return m_Blockchain.have_block(id);
   }
   //-----------------------------------------------------------------------------------------------
   bool core::parse_tx_from_blob(transaction& tx, crypto::hash& tx_hash, crypto::hash& tx_prefix_hash, const blobdata& blob)
@@ -483,25 +483,25 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   bool core::get_short_chain_history(std::list<crypto::hash>& ids)
   {
-    return m_blockchain_storage.get_short_chain_history(ids);
+    return m_Blockchain.get_short_chain_history(ids);
   }
   //-----------------------------------------------------------------------------------------------
   bool core::handle_get_objects(NOTIFY_REQUEST_GET_OBJECTS::request& arg, NOTIFY_RESPONSE_GET_OBJECTS::request& rsp, cryptonote_connection_context& context)
   {
-    return m_blockchain_storage.handle_get_objects(arg, rsp);
+    return m_Blockchain.handle_get_objects(arg, rsp);
   }
   //-----------------------------------------------------------------------------------------------
   crypto::hash core::get_block_id_by_height(uint64_t height)
   {
-    return m_blockchain_storage.get_block_id_by_height(height);
+    return m_Blockchain.get_block_id_by_height(height);
   }
   //-----------------------------------------------------------------------------------------------
   bool core::get_block_by_hash(const crypto::hash &h, block &blk) {
-    return m_blockchain_storage.get_block_by_hash(h, blk);
+    return m_Blockchain.get_block_by_hash(h, blk);
   }
   //-----------------------------------------------------------------------------------------------
   //void core::get_all_known_block_ids(std::list<crypto::hash> &main, std::list<crypto::hash> &alt, std::list<crypto::hash> &invalid) {
-  //  m_blockchain_storage.get_all_known_block_ids(main, alt, invalid);
+  //  m_Blockchain.get_all_known_block_ids(main, alt, invalid);
   //}
   //-----------------------------------------------------------------------------------------------
   std::string core::print_pool(bool short_format)
@@ -531,7 +531,7 @@ namespace cryptonote
       m_starter_message_showed = true;
     }
 
-    m_store_blockchain_interval.do_call(boost::bind(&blockchain_storage::store_blockchain, &m_blockchain_storage));
+    m_store_blockchain_interval.do_call(boost::bind(&Blockchain::store_blockchain, &m_Blockchain));
     m_miner.on_idle();
     m_mempool.on_idle();
     return true;

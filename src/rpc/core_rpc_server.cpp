@@ -76,7 +76,7 @@ namespace cryptonote
   //------------------------------------------------------------------------------------------------------------------------------
   bool core_rpc_server::check_core_busy()
   {
-    if(m_p2p.get_payload_object().get_core().get_blockchain_storage().is_storing_blockchain())
+    if(m_p2p.get_payload_object().get_core().get_Blockchain().is_storing_blockchain())
     {
       return false;
     }
@@ -108,10 +108,10 @@ namespace cryptonote
     CHECK_CORE_BUSY();
     res.height = m_core.get_current_blockchain_height();
     res.target_height = m_core.get_target_blockchain_height();
-    res.difficulty = m_core.get_blockchain_storage().get_difficulty_for_next_block();
-    res.tx_count = m_core.get_blockchain_storage().get_total_transactions() - res.height; //without coinbase
+    res.difficulty = m_core.get_Blockchain().get_difficulty_for_next_block();
+    res.tx_count = m_core.get_Blockchain().get_total_transactions() - res.height; //without coinbase
     res.tx_pool_size = m_core.get_pool_transactions_count();
-    res.alt_blocks_count = m_core.get_blockchain_storage().get_alternative_blocks_count();
+    res.alt_blocks_count = m_core.get_Blockchain().get_alternative_blocks_count();
     uint64_t total_conn = m_p2p.get_connections_count();
     res.outgoing_connections_count = m_p2p.get_outgoing_connections_count();
     res.incoming_connections_count = total_conn - res.outgoing_connections_count;
@@ -328,7 +328,7 @@ namespace cryptonote
   bool core_rpc_server::on_save_bc(const COMMAND_RPC_SAVE_BC::request& req, COMMAND_RPC_SAVE_BC::response& res, connection_context& cntx)
   {
     CHECK_CORE_BUSY();
-    if( !m_core.get_blockchain_storage().store_blockchain() )
+    if( !m_core.get_Blockchain().store_blockchain() )
     {
       res.status = "Error while storing blockhain";
       return true;
@@ -516,7 +516,7 @@ namespace cryptonote
     responce.height = height;
     responce.depth = m_core.get_current_blockchain_height() - height - 1;
     responce.hash = string_tools::pod_to_hex(hash);
-    responce.difficulty = m_core.get_blockchain_storage().block_difficulty(height);
+    responce.difficulty = m_core.get_Blockchain().block_difficulty(height);
     responce.reward = get_block_reward(blk);
     return true;
   }
@@ -658,10 +658,10 @@ namespace cryptonote
 
     res.height = m_core.get_current_blockchain_height();
     res.target_height = m_core.get_target_blockchain_height();
-    res.difficulty = m_core.get_blockchain_storage().get_difficulty_for_next_block();
-    res.tx_count = m_core.get_blockchain_storage().get_total_transactions() - res.height; //without coinbase
+    res.difficulty = m_core.get_Blockchain().get_difficulty_for_next_block();
+    res.tx_count = m_core.get_Blockchain().get_total_transactions() - res.height; //without coinbase
     res.tx_pool_size = m_core.get_pool_transactions_count();
-    res.alt_blocks_count = m_core.get_blockchain_storage().get_alternative_blocks_count();
+    res.alt_blocks_count = m_core.get_Blockchain().get_alternative_blocks_count();
     uint64_t total_conn = m_p2p.get_connections_count();
     res.outgoing_connections_count = m_p2p.get_outgoing_connections_count();
     res.incoming_connections_count = total_conn - res.outgoing_connections_count;

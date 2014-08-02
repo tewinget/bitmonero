@@ -37,7 +37,7 @@
 #include "cryptonote_protocol/cryptonote_protocol_handler_common.h"
 #include "storages/portable_storage_template_helper.h"
 #include "tx_pool.h"
-#include "blockchain_storage.h"
+#include "Blockchain.h"
 #include "miner.h"
 #include "connection_context.h"
 #include "cryptonote_core/cryptonote_stat_info.h"
@@ -80,7 +80,7 @@ namespace cryptonote
      template<class t_ids_container, class t_blocks_container, class t_missed_container>
      bool get_blocks(const t_ids_container& block_ids, t_blocks_container& blocks, t_missed_container& missed_bs)
      {
-       return m_blockchain_storage.get_blocks(block_ids, blocks, missed_bs);
+       return m_Blockchain.get_blocks(block_ids, blocks, missed_bs);
      }
      crypto::hash get_block_id_by_height(uint64_t height);
      bool get_transactions(const std::vector<crypto::hash>& txs_ids, std::list<transaction>& txs, std::list<crypto::hash>& missed_txs);
@@ -108,7 +108,7 @@ namespace cryptonote
      bool get_random_outs_for_amounts(const COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::request& req, COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::response& res);
      void pause_mine();
      void resume_mine();
-     blockchain_storage& get_blockchain_storage(){return m_blockchain_storage;}
+     Blockchain& get_Blockchain(){return m_Blockchain;}
      //debug functions
      void print_blockchain(uint64_t start_index, uint64_t end_index);
      void print_blockchain_index();
@@ -142,7 +142,7 @@ namespace cryptonote
 
 
      tx_memory_pool m_mempool;
-     blockchain_storage m_blockchain_storage;
+     Blockchain m_Blockchain;
      i_cryptonote_protocol* m_pprotocol;
      epee::critical_section m_incoming_tx_lock;
      //m_miner and m_miner_addres are probably temporary here

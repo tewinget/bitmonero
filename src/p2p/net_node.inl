@@ -366,7 +366,7 @@ namespace nodetool
     boost::archive::binary_oarchive a(p2p_data);
     a << *this;
     return true;
-    CATCH_ENTRY_L0("blockchain_storage::save", false);
+    CATCH_ENTRY_L0("Blockchain::save", false);
 
     return true;
   }
