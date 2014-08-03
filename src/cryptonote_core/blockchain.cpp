@@ -53,7 +53,8 @@ using namespace cryptonote;
 DISABLE_VS_WARNINGS(4267)
 
 //------------------------------------------------------------------
-Blockchain::Blockchain(tx_memory_pool& tx_pool):m_tx_pool(tx_pool), m_current_block_cumul_sz_limit(0), m_is_in_checkpoint_zone(false), m_is_blockchain_storing(false)
+// TODO: initialize m_db with a concrete implementation of BlockchainDB
+Blockchain::Blockchain(tx_memory_pool& tx_pool):m_db(), m_tx_pool(tx_pool), m_current_block_cumul_sz_limit(0), m_is_in_checkpoint_zone(false), m_is_blockchain_storing(false)
 {
 }
 //------------------------------------------------------------------

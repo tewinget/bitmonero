@@ -155,6 +155,8 @@ namespace cryptonote
     typedef std::unordered_map<crypto::hash, block> blocks_by_hash;
     typedef std::map<uint64_t, std::vector<std::pair<crypto::hash, size_t>>> outputs_container; //crypto::hash - tx hash, size_t - index of out in transaction
 
+    BlockchainDB* m_db;
+
     tx_memory_pool& m_tx_pool;
     epee::critical_section m_blockchain_lock; // TODO: add here reader/writer lock
 
