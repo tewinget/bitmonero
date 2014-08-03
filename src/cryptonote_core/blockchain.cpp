@@ -35,7 +35,7 @@
 
 #include "include_base_utils.h"
 #include "cryptonote_basic_impl.h"
-#include "Blockchain.h"
+#include "blockchain.h"
 #include "cryptonote_format_utils.h"
 #include "cryptonote_boost_serialization.h"
 #include "cryptonote_config.h"

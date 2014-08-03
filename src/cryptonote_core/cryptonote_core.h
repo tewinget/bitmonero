@@ -37,7 +37,7 @@
 #include "cryptonote_protocol/cryptonote_protocol_handler_common.h"
 #include "storages/portable_storage_template_helper.h"
 #include "tx_pool.h"
-#include "Blockchain.h"
+#include "blockchain.h"
 #include "miner.h"
 #include "connection_context.h"
 #include "cryptonote_core/cryptonote_stat_info.h"
