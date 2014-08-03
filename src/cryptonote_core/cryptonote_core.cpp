@@ -160,7 +160,7 @@ namespace cryptonote
     if(tx_blob.size() > get_max_tx_size())
     {
       LOG_PRINT_L0("WRONG TRANSACTION BLOB, too big size " << tx_blob.size() << ", rejected");
-      tvc.m_verifivation_failed = true;
+      tvc.m_verification_failed = true;
       return false;
     }
 
@@ -171,7 +171,7 @@ namespace cryptonote
     if(!parse_tx_from_blob(tx, tx_hash, tx_prefixt_hash, tx_blob))
     {
       LOG_PRINT_L0("WRONG TRANSACTION BLOB, Failed to parse, rejected");
-      tvc.m_verifivation_failed = true;
+      tvc.m_verification_failed = true;
       return false;
     }
     //std::cout << "!"<< tx.vin.size() << std::endl;
@@ -179,21 +179,21 @@ namespace cryptonote
     if(!check_tx_syntax(tx))
     {
       LOG_PRINT_L0("WRONG TRANSACTION BLOB, Failed to check tx " << tx_hash << " syntax, rejected");
-      tvc.m_verifivation_failed = true;
+      tvc.m_verification_failed = true;
       return false;
     }
 
     if(!check_tx_semantic(tx, keeped_by_block))
     {
       LOG_PRINT_L0("WRONG TRANSACTION BLOB, Failed to check tx " << tx_hash << " semantic, rejected");
-      tvc.m_verifivation_failed = true;
+      tvc.m_verification_failed = true;
       return false;
     }
 
     bool r = add_new_tx(tx, tx_hash, tx_prefixt_hash, tx_blob.size(), tvc, keeped_by_block);
-    if(tvc.m_verifivation_failed)
+    if(tvc.m_verification_failed)
     {LOG_PRINT_RED_L0("Transaction verification failed: " << tx_hash);}
-    else if(tvc.m_verifivation_impossible)
+    else if(tvc.m_verification_impossible)
     {LOG_PRINT_RED_L0("Transaction verification impossible: " << tx_hash);}
 
     if(tvc.m_added_to_pool)
@@ -373,7 +373,7 @@ namespace cryptonote
     m_miner.resume();
 
 
-    CHECK_AND_ASSERT_MES(!bvc.m_verifivation_failed, false, "mined block failed verification");
+    CHECK_AND_ASSERT_MES(!bvc.m_verification_failed, false, "mined block failed verification");
     if(bvc.m_added_to_main_chain)
     {
       cryptonote_connection_context exclude_context = boost::value_initialized<cryptonote_connection_context>();
@@ -421,7 +421,7 @@ namespace cryptonote
     if(block_blob.size() > get_max_block_size())
     {
       LOG_PRINT_L0("WRONG BLOCK BLOB, too big size " << block_blob.size() << ", rejected");
-      bvc.m_verifivation_failed = true;
+      bvc.m_verification_failed = true;
       return false;
     }
 
@@ -429,7 +429,7 @@ namespace cryptonote
     if(!parse_and_validate_block_from_blob(block_blob, b))
     {
       LOG_PRINT_L0("Failed to parse and validate new block");
-      bvc.m_verifivation_failed = true;
+      bvc.m_verification_failed = true;
       return false;
     }
     add_new_block(b, bvc);

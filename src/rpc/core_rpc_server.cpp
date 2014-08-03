@@ -252,7 +252,7 @@ namespace cryptonote
       return true;
     }
 
-    if(tvc.m_verifivation_failed)
+    if(tvc.m_verification_failed)
     {
       LOG_PRINT_L0("[on_send_raw_tx]: tx verification failed");
       res.status = "Failed";

@@ -223,7 +223,7 @@ namespace cryptonote
     {
       cryptonote::tx_verification_context tvc = AUTO_VAL_INIT(tvc);
       m_core.handle_incoming_tx(*tx_blob_it, tvc, true);
-      if(tvc.m_verifivation_failed)
+      if(tvc.m_verification_failed)
       {
         LOG_PRINT_CCONTEXT_L0("Block verification failed: transaction verification failed, dropping connection");
         m_p2p->drop_connection(context);
@@ -236,7 +236,7 @@ namespace cryptonote
     m_core.pause_mine();
     m_core.handle_incoming_block(arg.b.block, bvc);
     m_core.resume_mine();
-    if(bvc.m_verifivation_failed)
+    if(bvc.m_verification_failed)
     {
       LOG_PRINT_CCONTEXT_L0("Block verification failed, dropping connection");
       m_p2p->drop_connection(context);
@@ -270,7 +270,7 @@ namespace cryptonote
     {
       cryptonote::tx_verification_context tvc = AUTO_VAL_INIT(tvc);
       m_core.handle_incoming_tx(*tx_blob_it, tvc, false);
-      if(tvc.m_verifivation_failed)
+      if(tvc.m_verification_failed)
       {
         LOG_PRINT_CCONTEXT_L0("Tx verification failed, dropping connection");
         m_p2p->drop_connection(context);
@@ -386,7 +386,7 @@ namespace cryptonote
         {
           tx_verification_context tvc = AUTO_VAL_INIT(tvc);
           m_core.handle_incoming_tx(tx_blob, tvc, true);
-          if(tvc.m_verifivation_failed)
+          if(tvc.m_verification_failed)
           {
             LOG_ERROR_CCONTEXT("transaction verification failed on NOTIFY_RESPONSE_GET_OBJECTS, \r\ntx_id = " 
               << epee::string_tools::pod_to_hex(get_blob_hash(tx_blob)) << ", dropping connection");
@@ -402,7 +402,7 @@ namespace cryptonote
 
         m_core.handle_incoming_block(block_entry.block, bvc, false);
 
-        if(bvc.m_verifivation_failed)
+        if(bvc.m_verification_failed)
         {
           LOG_PRINT_CCONTEXT_L0("Block verification failed, dropping connection");
           m_p2p->drop_connection(context);

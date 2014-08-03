@@ -65,14 +65,14 @@ namespace cryptonote
 
     if(!check_inputs_types_supported(tx))
     {
-      tvc.m_verifivation_failed = true;
+      tvc.m_verification_failed = true;
       return false;
     }
 
     uint64_t inputs_amount = 0;
     if(!get_inputs_money_amount(tx, inputs_amount))
     {
-      tvc.m_verifivation_failed = true;
+      tvc.m_verification_failed = true;
       return false;
     }
 
@@ -81,7 +81,7 @@ namespace cryptonote
     if(outputs_amount >= inputs_amount)
     {
       LOG_PRINT_L0("transaction use more money then it has: use " << print_money(outputs_amount) << ", have " << print_money(inputs_amount));
-      tvc.m_verifivation_failed = true;
+      tvc.m_verification_failed = true;
       return false;
     }
 
@@ -89,14 +89,14 @@ namespace cryptonote
     if (!kept_by_block && fee < DEFAULT_FEE)
     {
       LOG_ERROR("transaction fee is not enough: " << print_money(fee) << ", minumim fee: " << print_money(DEFAULT_FEE));
-      tvc.m_verifivation_failed = true;
+      tvc.m_verification_failed = true;
       return false;
     }
 
     if (!kept_by_block && blob_size >= TRANSACTION_SIZE_LIMIT)
     {
       LOG_ERROR("transaction is too big: " << blob_size << " bytes, maximum size: " << TRANSACTION_SIZE_LIMIT);
-      tvc.m_verifivation_failed = true;
+      tvc.m_verification_failed = true;
       return false;
     }
 
@@ -106,7 +106,7 @@ namespace cryptonote
       if(have_tx_keyimges_as_spent(tx))
       {
         LOG_ERROR("Transaction with id= "<< id << " used already spent key images");
-        tvc.m_verifivation_failed = true;
+        tvc.m_verification_failed = true;
         return false;
       }
     }
@@ -130,12 +130,12 @@ namespace cryptonote
         txd_p.first->second.max_used_block_height = 0;
         txd_p.first->second.kept_by_block = kept_by_block;
         txd_p.first->second.receive_time = time(nullptr);
-        tvc.m_verifivation_impossible = true;
+        tvc.m_verification_impossible = true;
         tvc.m_added_to_pool = true;
       }else
       {
         LOG_PRINT_L0("tx used wrong inputs, rejected");
-        tvc.m_verifivation_failed = true;
+        tvc.m_verification_failed = true;
         return false;
       }
     }else
@@ -158,7 +158,7 @@ namespace cryptonote
         tvc.m_should_be_relayed = true;
     }
 
-    tvc.m_verifivation_failed = true;
+    tvc.m_verification_failed = true;
     //update image_keys container, here should everything goes ok.
     BOOST_FOREACH(const auto& in, tx.vin)
     {
@@ -171,7 +171,7 @@ namespace cryptonote
       CHECK_AND_ASSERT_MES(ins_res.second, false, "internal error: try to insert duplicate iterator in key_image set");
     }
 
-    tvc.m_verifivation_failed = false;
+    tvc.m_verification_failed = false;
     //succeed
     return true;
   }
