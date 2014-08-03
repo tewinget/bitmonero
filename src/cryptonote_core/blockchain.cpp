@@ -53,6 +53,66 @@ using namespace cryptonote;
 DISABLE_VS_WARNINGS(4267)
 
 //------------------------------------------------------------------
+Blockchain::Blockchain(tx_memory_pool& tx_pool):m_tx_pool(tx_pool), m_current_block_cumul_sz_limit(0), m_is_in_checkpoint_zone(false), m_is_blockchain_storing(false)
+{
+}
+//------------------------------------------------------------------
+template<class archive_t>
+void Blockchain::serialize(archive_t & ar, const unsigned int version)
+{
+  if(version < 11)
+    return;
+  CRITICAL_REGION_LOCAL(m_blockchain_lock);
+  ar & m_blocks;
+  ar & m_blocks_index;
+  ar & m_transactions;
+  ar & m_spent_keys;
+  ar & m_alternative_chains;
+  ar & m_outputs;
+  ar & m_invalid_blocks;
+  ar & m_current_block_cumul_sz_limit;
+  /*serialization bug workaround*/
+  if(version > 11)
+  {
+    uint64_t total_check_count = m_blocks.size() + m_blocks_index.size() + m_transactions.size() + m_spent_keys.size() + m_alternative_chains.size() + m_outputs.size() + m_invalid_blocks.size() + m_current_block_cumul_sz_limit;
+    if(archive_t::is_saving::value)
+    {        
+      ar & total_check_count;
+    }else
+    {
+      uint64_t total_check_count_loaded = 0;
+      ar & total_check_count_loaded;
+      if(total_check_count != total_check_count_loaded)
+      {
+        LOG_ERROR("Blockchain storage data corruption detected. total_count loaded from file = " << total_check_count_loaded << ", expected = " << total_check_count);
+
+        LOG_PRINT_L0("Blockchain storage:" << ENDL << 
+          "m_blocks: " << m_blocks.size() << ENDL  << 
+          "m_blocks_index: " << m_blocks_index.size() << ENDL  << 
+          "m_transactions: " << m_transactions.size() << ENDL  << 
+          "m_spent_keys: " << m_spent_keys.size() << ENDL  << 
+          "m_alternative_chains: " << m_alternative_chains.size() << ENDL  << 
+          "m_outputs: " << m_outputs.size() << ENDL  << 
+          "m_invalid_blocks: " << m_invalid_blocks.size() << ENDL  << 
+          "m_current_block_cumul_sz_limit: " << m_current_block_cumul_sz_limit);
+
+        throw std::runtime_error("Blockchain data corruption");
+      }
+    }
+  }
+
+
+  LOG_PRINT_L2("Blockchain storage:" << ENDL << 
+      "m_blocks: " << m_blocks.size() << ENDL  << 
+      "m_blocks_index: " << m_blocks_index.size() << ENDL  << 
+      "m_transactions: " << m_transactions.size() << ENDL  << 
+      "m_spent_keys: " << m_spent_keys.size() << ENDL  << 
+      "m_alternative_chains: " << m_alternative_chains.size() << ENDL  << 
+      "m_outputs: " << m_outputs.size() << ENDL  << 
+      "m_invalid_blocks: " << m_invalid_blocks.size() << ENDL  << 
+      "m_current_block_cumul_sz_limit: " << m_current_block_cumul_sz_limit);
+}
+//------------------------------------------------------------------
 bool Blockchain::have_tx(const crypto::hash &id)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -73,6 +133,45 @@ transaction *Blockchain::get_tx(const crypto::hash &id)
     return NULL;
 
   return &it->second.tx;
+}
+//------------------------------------------------------------------
+template<class visitor_t>
+bool Blockchain::scan_outputkeys_for_indexes(const txin_to_key& tx_in_to_key, visitor_t& vis, uint64_t* pmax_related_block_height)
+{
+  CRITICAL_REGION_LOCAL(m_blockchain_lock);
+  auto it = m_outputs.find(tx_in_to_key.amount);
+  if(it == m_outputs.end() || !tx_in_to_key.key_offsets.size())
+    return false;
+
+  std::vector<uint64_t> absolute_offsets = relative_output_offsets_to_absolute(tx_in_to_key.key_offsets);
+
+
+  std::vector<std::pair<crypto::hash, size_t> >& amount_outs_vec = it->second;
+  size_t count = 0;
+  BOOST_FOREACH(uint64_t i, absolute_offsets)
+  {
+    if(i >= amount_outs_vec.size() )
+    {
+      LOG_PRINT_L0("Wrong index in transaction inputs: " << i << ", expected maximum " << amount_outs_vec.size() - 1);
+      return false;
+    }
+    transactions_container::iterator tx_it = m_transactions.find(amount_outs_vec[i].first);
+    CHECK_AND_ASSERT_MES(tx_it != m_transactions.end(), false, "Wrong transaction id in output indexes: " << epee::string_tools::pod_to_hex(amount_outs_vec[i].first));
+    CHECK_AND_ASSERT_MES(amount_outs_vec[i].second < tx_it->second.tx.vout.size(), false,
+      "Wrong index in transaction outputs: " << amount_outs_vec[i].second << ", expected less then " << tx_it->second.tx.vout.size());
+    if(!vis.handle_output(tx_it->second.tx, tx_it->second.tx.vout[amount_outs_vec[i].second]))
+    {
+      LOG_PRINT_L0("Failed to handle_output for output no = " << count << ", with absolute offset " << i);
+      return false;
+    }
+    if(count++ == absolute_offsets.size()-1 && pmax_related_block_height)
+    {
+      if(*pmax_related_block_height < tx_it->second.m_keeper_block_height)
+        *pmax_related_block_height = tx_it->second.m_keeper_block_height;
+    }
+  }
+
+  return true;
 }
 //------------------------------------------------------------------
 uint64_t Blockchain::get_current_blockchain_height()
@@ -1080,6 +1179,48 @@ uint64_t Blockchain::block_difficulty(size_t i)
     return m_blocks[i].cumulative_difficulty;
 
   return m_blocks[i].cumulative_difficulty - m_blocks[i-1].cumulative_difficulty;
+}
+//------------------------------------------------------------------
+template<class t_ids_container, class t_blocks_container, class t_missed_container>
+bool Blockchain::get_blocks(const t_ids_container& block_ids, t_blocks_container& blocks, t_missed_container& missed_bs)
+{
+  CRITICAL_REGION_LOCAL(m_blockchain_lock);
+
+  BOOST_FOREACH(const auto& bl_id, block_ids)
+  {
+    auto it = m_blocks_index.find(bl_id);
+    if(it == m_blocks_index.end())
+      missed_bs.push_back(bl_id);
+    else
+    {
+      CHECK_AND_ASSERT_MES(it->second < m_blocks.size(), false, "Internal error: bl_id=" << epee::string_tools::pod_to_hex(bl_id)
+        << " have index record with offset="<<it->second<< ", bigger then m_blocks.size()=" << m_blocks.size());
+        blocks.push_back(m_blocks[it->second].bl);
+    }
+  }
+  return true;
+}
+//------------------------------------------------------------------
+template<class t_ids_container, class t_tx_container, class t_missed_container>
+bool Blockchain::get_transactions(const t_ids_container& txs_ids, t_tx_container& txs, t_missed_container& missed_txs)
+{
+  CRITICAL_REGION_LOCAL(m_blockchain_lock);
+
+  BOOST_FOREACH(const auto& tx_id, txs_ids)
+  {
+    auto it = m_transactions.find(tx_id);
+    if(it == m_transactions.end())
+    {
+      transaction tx;
+      if(!m_tx_pool.get_transaction(tx_id, tx))
+        missed_txs.push_back(tx_id);
+      else
+        txs.push_back(tx);
+    }
+    else
+      txs.push_back(it->second.tx);
+  }
+  return true;
 }
 //------------------------------------------------------------------
 void Blockchain::print_blockchain(uint64_t start_index, uint64_t end_index)
