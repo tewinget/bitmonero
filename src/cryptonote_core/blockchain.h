@@ -102,7 +102,6 @@ namespace cryptonote
     bool have_tx(const crypto::hash &id);
     bool have_tx_keyimges_as_spent(const transaction &tx);
     bool have_tx_keyimg_as_spent(const crypto::key_image &key_im);
-    transaction *get_tx(const crypto::hash &id);
 
     template<class visitor_t>
     bool scan_outputkeys_for_indexes(const txin_to_key& tx_in_to_key, visitor_t& vis, uint64_t* pmax_related_block_height = NULL);
