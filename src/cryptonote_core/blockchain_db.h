@@ -50,6 +50,12 @@
  * Unspent transaction outputs are duplicated to quickly gather random
  * outputs to use for mixins
  *
+ * IMPORTANT:
+ * A concrete implementation of this interface should populate these
+ * duplicated members!  It is possible to have a partial implementation
+ * of this interface call to private members of the interface to be added
+ * later that will then populate as needed.
+ *
  * General:
  *   open()
  *   close()
@@ -78,7 +84,7 @@
  *   hashes      get_hashes_range(height1, height2)
  *   hash        top_block_hash()
  *   height      height()
- *   void        pop_block()
+ *   block       pop_block()
  *
  * Transactions:
  *   bool        tx_exists(hash)
@@ -352,7 +358,9 @@ protected:
   virtual uint64_t height() = 0;
 
   // pops the top block off the blockchain and removes its associated transactions
-  virtual void pop_block() = 0;
+  // returns the block, so that the blockchain can do any cleanup such as returning
+  // any transactions in that block to the tx pool.
+  virtual block pop_block() = 0;
 
 
   // return true if a transaction with hash <h> exists
