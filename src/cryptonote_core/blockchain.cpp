@@ -64,6 +64,10 @@ DISABLE_VS_WARNINGS(4267)
 // TODO: initialize m_db with a concrete implementation of BlockchainDB
 Blockchain::Blockchain(tx_memory_pool& tx_pool):m_db(), m_tx_pool(tx_pool), m_current_block_cumul_sz_limit(0), m_is_in_checkpoint_zone(false), m_is_blockchain_storing(false)
 {
+  if (m_db == NULL)
+  {
+    throw new DB_ERROR("database pointer null in blockchain init");
+  }
 }
 //------------------------------------------------------------------
 //TODO: is this still needed?  I don't think so - tewinget
@@ -126,23 +130,13 @@ void Blockchain::serialize(archive_t & ar, const unsigned int version)
 bool Blockchain::have_tx(const crypto::hash &id)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  return m_transactions.find(id) != m_transactions.end();
+  return m_db->tx_exists(id);
 }
 //------------------------------------------------------------------
 bool Blockchain::have_tx_keyimg_as_spent(const crypto::key_image &key_im)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  return  m_spent_keys.find(key_im) != m_spent_keys.end();
-}
-//------------------------------------------------------------------
-transaction *Blockchain::get_tx(const crypto::hash &id)
-{
-  CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  auto it = m_transactions.find(id);
-  if (it == m_transactions.end())
-    return NULL;
-
-  return &it->second.tx;
+  return  m_db->has_key_image(key_im);
 }
 //------------------------------------------------------------------
 //TODO: rewrite using BlockchainDB
@@ -191,7 +185,7 @@ bool Blockchain::scan_outputkeys_for_indexes(const txin_to_key& tx_in_to_key, vi
 uint64_t Blockchain::get_current_blockchain_height()
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  return m_blocks.size();
+  return m_db->height();
 }
 //------------------------------------------------------------------
 //TODO: rewrite using BlockchainDB
@@ -228,31 +222,21 @@ bool Blockchain::init(const std::string& config_folder)
 //------------------------------------------------------------------
 bool Blockchain::store_blockchain()
 {
-  m_is_blockchain_storing = true;
-  epee::misc_utils::auto_scope_leave_caller scope_exit_handler = epee::misc_utils::create_scope_leave_handler([&](){m_is_blockchain_storing=false;});
-
-  LOG_PRINT_L0("Storing blockchain...");
-  if (!tools::create_directories_if_necessary(m_config_folder))
+  // TODO: make sure if this throws that it is not simply ignored higher
+  // up the call stack
+  try
   {
-    LOG_PRINT_L0("Failed to create data directory: " << m_config_folder);
-    return false;
+    m_db->sync();
   }
-
-  const std::string temp_filename = m_config_folder + "/" CRYPTONOTE_BLOCKCHAINDATA_TEMP_FILENAME;
-  // There is a chance that temp_filename and filename are hardlinks to the same file
-  std::remove(temp_filename.c_str());
-  if(!tools::serialize_obj_to_file(*this, temp_filename))
+  catch (const std::exception& e)
   {
-    //achtung!
-    LOG_ERROR("Failed to save blockchain data to file: " << temp_filename);
-    return false;
+    LOG_PRINT_L0(std::string("Error syncing blockchain db: ") + e.what() + "-- shutting down now to prevent issues!");
+    throw;
   }
-  const std::string filename = m_config_folder + "/" CRYPTONOTE_BLOCKCHAINDATA_FILENAME;
-  std::error_code ec = tools::replace_file(temp_filename, filename);
-  if (ec)
+  catch (...)
   {
-    LOG_ERROR("Failed to rename blockchain data file " << temp_filename << " to " << filename << ": " << ec.message() << ':' << ec.value());
-    return false;
+    LOG_PRINT_L0("There was an issue storing the blockchain, shutting down now to prevent issues!");
+    throw;
   }
   LOG_PRINT_L0("Blockchain stored OK.");
   return true;
@@ -260,27 +244,43 @@ bool Blockchain::store_blockchain()
 //------------------------------------------------------------------
 bool Blockchain::deinit()
 {
-  return store_blockchain();
+  // as this should be called if handling a SIGSEGV, need to check
+  // if m_db is a NULL pointer (and thus may have caused the illegal
+  // memory operation), otherwise we may cause a loop.
+  if (m_db == NULL)
+  {
+    throw new DB_ERROR("The db pointer is null in Blockchain, the blockchain may be corrupt!");
+  }
+
+  try
+  {
+    m_db->close();
+  }
+  catch (const std::exception& e)
+  {
+    LOG_PRINT_L0(std::string("Error closing blockchain db: ") + e.what());
+  }
+  catch (...)
+  {
+    LOG_PRINT_L0("There was an issue closing/storing the blockchain, shutting down now to prevent issues!");
+  }
+  return true;
 }
 //------------------------------------------------------------------
 bool Blockchain::pop_block_from_blockchain()
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
 
-  CHECK_AND_ASSERT_MES(m_blocks.size() > 1, false, "pop_block_from_blockchain: can't pop from blockchain with size = " << m_blocks.size());
-  size_t h = m_blocks.size()-1;
-  block_extended_info& bei = m_blocks[h];
-  //crypto::hash id = get_block_hash(bei.bl);
-  bool r = purge_block_data_from_blockchain(bei.bl, bei.bl.tx_hashes.size());
-  CHECK_AND_ASSERT_MES(r, false, "Failed to purge_block_data_from_blockchain for block " << get_block_hash(bei.bl) << " on height " << h);
+  auto h = m_db->height();
+  CHECK_AND_ASSERT_MES(h > 1, false, "popping the genesis block from the blockchain doesn't make any sense");
+  auto popped_block = m_db->pop_block();
 
-  //remove from index
-  auto bl_ind = m_blocks_index.find(get_block_hash(bei.bl));
-  CHECK_AND_ASSERT_MES(bl_ind != m_blocks_index.end(), false, "pop_block_from_blockchain: blockchain id not found in index");
-  m_blocks_index.erase(bl_ind);
-  //pop block from core
-  m_blocks.pop_back();
-  m_tx_pool.on_blockchain_dec(m_blocks.size()-1, get_tail_id());
+  //TODO: revisit this after the function purge_block_data_from_blockchain has been modified as needed
+  bool r = purge_block_data_from_blockchain(popped_block, popped_block.tx_hashes.size());
+  CHECK_AND_ASSERT_MES(r, false, "Failed to purge_block_data_from_blockchain for block " << get_block_hash(popped_block) << "at height " << h);
+
+  //TODO: this appears to be a NOP on m_tx_pool's end, verify and remove if possible
+  m_tx_pool.on_blockchain_dec(h, get_tail_id());
   return true;
 }
 //------------------------------------------------------------------
@@ -293,6 +293,7 @@ bool Blockchain::reset_and_set_genesis_block(const block& b)
   m_blocks_index.clear();
   m_alternative_chains.clear();
   m_outputs.clear();
+  m_db->reset();
 
   block_verification_context bvc = boost::value_initialized<block_verification_context>();
   add_new_block(b, bvc);
@@ -393,19 +394,14 @@ bool Blockchain::purge_block_data_from_blockchain(const block& bl, size_t proces
 crypto::hash Blockchain::get_tail_id(uint64_t& height)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  height = get_current_blockchain_height()-1;
+  height = m_db->height();
   return get_tail_id();
 }
 //------------------------------------------------------------------
 crypto::hash Blockchain::get_tail_id()
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  crypto::hash id = null_hash;
-  if(m_blocks.size())
-  {
-    get_block_hash(m_blocks.back().bl, id);
-  }
-  return id;
+  return m_db->top_block_hash();
 }
 //------------------------------------------------------------------
 //TODO: rewrite using BlockchainDB
@@ -442,27 +438,43 @@ bool Blockchain::get_short_chain_history(std::list<crypto::hash>& ids)
 crypto::hash Blockchain::get_block_id_by_height(uint64_t height)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  if(height >= m_blocks.size())
-    return null_hash;
-
-  return get_block_hash(m_blocks[height].bl);
+  try
+  {
+    return m_db->get_block_from_height(height);
+  }
+  catch (BLOCK_DNE e)
+  {
+  }
+  catch (std::exception e)
+  {
+    LOG_PRINT_L0(std::string("Something went wrong fetching block hash by height: ") + e.what());
+    throw;
+  }
+  return null_hash;
 }
 //------------------------------------------------------------------
 bool Blockchain::get_block_by_hash(const crypto::hash &h, block &blk) {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
 
   // try to find block in main chain
-  blocks_by_id_index::const_iterator it = m_blocks_index.find(h);
-  if (m_blocks_index.end() != it) {
-    blk = m_blocks[it->second].bl;
+  try
+  {
+    blk = m_db->get_block(hash);
     return true;
   }
-
   // try to find block in alternative chain
-  blocks_ext_by_hash::const_iterator it_alt = m_alternative_chains.find(h);
-  if (m_alternative_chains.end() != it_alt) {
-    blk = it_alt->second.bl;
-    return true;
+  catch (BLOCK_DNE e)
+  {
+    blocks_ext_by_hash::const_iterator it_alt = m_alternative_chains.find(h);
+    if (m_alternative_chains.end() != it_alt) {
+      blk = it_alt->second.bl;
+      return true;
+    }
+  }
+  catch (std::exception e)
+  {
+    LOG_PRINT_L0(std::string("Something went wrong fetching block by hash: ") + e.what());
+    throw;
   }
 
   return false;
@@ -471,8 +483,7 @@ bool Blockchain::get_block_by_hash(const crypto::hash &h, block &blk) {
 void Blockchain::get_all_known_block_ids(std::list<crypto::hash> &main, std::list<crypto::hash> &alt, std::list<crypto::hash> &invalid) {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
 
-  BOOST_FOREACH(blocks_by_id_index::value_type &v, m_blocks_index)
-    main.push_back(v.first);
+  main = m_db->get_hashes_range(0, m_db->height());
 
   BOOST_FOREACH(blocks_ext_by_hash::value_type &v, m_alternative_chains)
     alt.push_back(v.first);
@@ -689,24 +700,29 @@ bool Blockchain::validate_miner_transaction(const block& b, size_t cumulative_bl
   return true;
 }
 //------------------------------------------------------------------
-bool Blockchain::get_backward_blocks_sizes(size_t from_height, std::vector<size_t>& sz, size_t count)
+void Blockchain::get_backward_blocks_sizes(size_t from_height, std::vector<size_t>& sz, size_t count)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  CHECK_AND_ASSERT_MES(from_height < m_blocks.size(), false, "Internal error: get_backward_blocks_sizes called with from_height=" << from_height << ", blockchain height = " << m_blocks.size());
+  auto h = m_db->height();
+  CHECK_AND_ASSERT_MES(from_height < h, false, "Internal error: get_backward_blocks_sizes called with from_height=" << from_height << ", blockchain height = " << h);
 
-  size_t start_offset = (from_height+1) - std::min((from_height+1), count);
-  for(size_t i = start_offset; i != from_height+1; i++)
-    sz.push_back(m_blocks[i].block_cumulative_size);
-
-  return true;
 }
 //------------------------------------------------------------------
-bool Blockchain::get_last_n_blocks_sizes(std::vector<size_t>& sz, size_t count)
+void Blockchain::get_last_n_blocks_sizes(std::vector<size_t>& sz, size_t count)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  if(!m_blocks.size())
-    return true;
-  return get_backward_blocks_sizes(m_blocks.size() -1, sz, count);
+  auto h = m_db->height();
+
+  // this function is meaningless for an empty blockchain...granted it should never be empty
+  if(h == 0)
+    return;
+
+  // add size of last <count> blocks to vector <sz> (or less, if blockchain size < count)
+  size_t stop_offset = h - std::min(h, count - 1);
+  for(size_t i = h; i >= stop_offset; --i)
+  {
+    sz.push_front(m_db->get_block_size(i));
+  }
 }
 //------------------------------------------------------------------
 //TODO: rewrite using BlockchainDB
@@ -1217,70 +1233,74 @@ bool Blockchain::find_blockchain_supplement(const std::list<crypto::hash>& qbloc
 uint64_t Blockchain::block_difficulty(size_t i)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  CHECK_AND_ASSERT_MES(i < m_blocks.size(), false, "wrong block index i = " << i << " at Blockchain::block_difficulty()");
-  if(i == 0)
-    return m_blocks[i].cumulative_difficulty;
-
-  return m_blocks[i].cumulative_difficulty - m_blocks[i-1].cumulative_difficulty;
+  try
+  {
+    return m_db->get_block_difficulty(i);
+  }
+  catch (const BLOCK_DNE& e)
+  {
+    LOG_PRINT_L0("Attempted to get block difficulty for height above blockchain height");
+  }
 }
 //------------------------------------------------------------------
 template<class t_ids_container, class t_blocks_container, class t_missed_container>
-bool Blockchain::get_blocks(const t_ids_container& block_ids, t_blocks_container& blocks, t_missed_container& missed_bs)
+void Blockchain::get_blocks(const t_ids_container& block_ids, t_blocks_container& blocks, t_missed_container& missed_bs)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
 
-  BOOST_FOREACH(const auto& bl_id, block_ids)
+  for (const auto& block_hash : block_ids)
   {
-    auto it = m_blocks_index.find(bl_id);
-    if(it == m_blocks_index.end())
-      missed_bs.push_back(bl_id);
-    else
+    try
     {
-      CHECK_AND_ASSERT_MES(it->second < m_blocks.size(), false, "Internal error: bl_id=" << epee::string_tools::pod_to_hex(bl_id)
-        << " have index record with offset="<<it->second<< ", bigger then m_blocks.size()=" << m_blocks.size());
-        blocks.push_back(m_blocks[it->second].bl);
+      blocks.push_back(m_db->get_block(block_hash));
+    }
+    catch (const BLOCK_DNE& e)
+    {
+      missed_bs.push_back(block_hash);
     }
   }
-  return true;
 }
 //------------------------------------------------------------------
 template<class t_ids_container, class t_tx_container, class t_missed_container>
-bool Blockchain::get_transactions(const t_ids_container& txs_ids, t_tx_container& txs, t_missed_container& missed_txs)
+void Blockchain::get_transactions(const t_ids_container& txs_ids, t_tx_container& txs, t_missed_container& missed_txs)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
 
-  BOOST_FOREACH(const auto& tx_id, txs_ids)
+  for (const auto& tx_hash : txs_ids)
   {
-    auto it = m_transactions.find(tx_id);
-    if(it == m_transactions.end())
+    try
     {
-      transaction tx;
-      if(!m_tx_pool.get_transaction(tx_id, tx))
-        missed_txs.push_back(tx_id);
-      else
-        txs.push_back(tx);
+      txs.push_back(m_db->get_tx(tx_hash));
     }
-    else
-      txs.push_back(it->second.tx);
+    catch (const TX_DNE& e)
+    {
+      missed_txs.push_back(tx_hash);
+    }
   }
-  return true;
 }
 //------------------------------------------------------------------
 void Blockchain::print_blockchain(uint64_t start_index, uint64_t end_index)
 {
   std::stringstream ss;
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  if(start_index >=m_blocks.size())
+  auto h = m_db->height();
+  if(start_index > h)
   {
-    LOG_PRINT_L0("Wrong starter index set: " << start_index << ", expected max index " << m_blocks.size()-1);
+    LOG_PRINT_L0("Wrong starter index set: " << start_index << ", expected max index " << h);
     return;
   }
 
-  for(size_t i = start_index; i != m_blocks.size() && i != end_index; i++)
+  for(size_t i = start_index; i <= h && i != end_index; i++)
   {
-    ss << "height " << i << ", timestamp " << m_blocks[i].bl.timestamp << ", cumul_dif " << m_blocks[i].cumulative_difficulty << ", cumul_size " << m_blocks[i].block_cumulative_size
-      << "\nid\t\t" <<  get_block_hash(m_blocks[i].bl)
-      << "\ndifficulty\t\t" << block_difficulty(i) << ", nonce " << m_blocks[i].bl.nonce << ", tx_count " << m_blocks[i].bl.tx_hashes.size() << ENDL;
+    ss << "height " << i
+       << ", timestamp " << m_db->get_block_timestamp(i)
+       << ", cumul_dif " << m_db->get_block_cumulative_difficulty(i)
+       << ", size " << m_db->get_block_size(i);
+       << "\nid\t\t" <<  m_db->get_block_hash_from_height(i)
+       << "\ndifficulty\t\t" << m_db->get_block_difficulty(i)
+       << ", nonce " << m_db->get_block_from_height(i).nonce
+       << ", tx_count " << m_db->get_block_from_height(i).tx_hashes.size()
+       << std::endl;
   }
   LOG_PRINT_L1("Current blockchain:" << ENDL << ss.str());
   LOG_PRINT_L0("Blockchain printed with log level 1");
@@ -1290,10 +1310,14 @@ void Blockchain::print_blockchain_index()
 {
   std::stringstream ss;
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  BOOST_FOREACH(const blocks_by_id_index::value_type& v, m_blocks_index)
-    ss << "id\t\t" <<  v.first << " height" <<  v.second << ENDL << "";
+  for(uint64_t i = 0; i <= m_db->height(); i++)
+  {
+    ss << "height: " << i << ", hash: " << m_db->get_block_hash_from_height(i);
+  }
 
-  LOG_PRINT_L0("Current blockchain index:" << ENDL << ss.str());
+  LOG_PRINT_L0("Current blockchain index:" << std::endl
+               << ss.str()
+              );
 }
 //------------------------------------------------------------------
 //TODO: rewrite using BlockchainDB
@@ -1377,7 +1401,7 @@ bool Blockchain::add_block_as_invalid(const block_extended_info& bei, const cryp
 bool Blockchain::have_block(const crypto::hash& id)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  if(m_blocks_index.count(id))
+  if(m_db->block_exists(id))
     return true;
   if(m_alternative_chains.count(id))
     return true;

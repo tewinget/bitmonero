@@ -123,7 +123,7 @@ namespace cryptonote
     bool handle_get_objects(NOTIFY_REQUEST_GET_OBJECTS::request& arg, NOTIFY_RESPONSE_GET_OBJECTS::request& rsp);
     bool handle_get_objects(const COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::request& req, COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::response& res);
     bool get_random_outs_for_amounts(const COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::request& req, COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::response& res);
-    bool get_backward_blocks_sizes(size_t from_height, std::vector<size_t>& sz, size_t count);
+    void get_backward_blocks_sizes(size_t from_height, std::vector<size_t>& sz, size_t count);
     bool get_tx_outputs_gindexs(const crypto::hash& tx_id, std::vector<uint64_t>& indexs);
     bool store_blockchain();
     bool check_tx_input(const txin_to_key& txin, const crypto::hash& tx_prefix_hash, const std::vector<crypto::signature>& sig, uint64_t* pmax_related_block_height = NULL);
@@ -135,10 +135,10 @@ namespace cryptonote
     uint64_t block_difficulty(size_t i);
 
     template<class t_ids_container, class t_blocks_container, class t_missed_container>
-    bool get_blocks(const t_ids_container& block_ids, t_blocks_container& blocks, t_missed_container& missed_bs);
+    void get_blocks(const t_ids_container& block_ids, t_blocks_container& blocks, t_missed_container& missed_bs);
 
     template<class t_ids_container, class t_tx_container, class t_missed_container>
-    bool get_transactions(const t_ids_container& txs_ids, t_tx_container& txs, t_missed_container& missed_txs);
+    void get_transactions(const t_ids_container& txs_ids, t_tx_container& txs, t_missed_container& missed_txs);
 
     //debug functions
     void print_blockchain(uint64_t start_index, uint64_t end_index);
@@ -197,7 +197,7 @@ namespace cryptonote
     bool add_transaction_from_block(const transaction& tx, const crypto::hash& tx_id, const crypto::hash& bl_id, uint64_t bl_height);
     bool push_transaction_to_global_outs_index(const transaction& tx, const crypto::hash& tx_id, std::vector<uint64_t>& global_indexes);
     bool pop_transaction_from_global_index(const transaction& tx, const crypto::hash& tx_id);
-    bool get_last_n_blocks_sizes(std::vector<size_t>& sz, size_t count);
+    void get_last_n_blocks_sizes(std::vector<size_t>& sz, size_t count);
     bool add_out_to_get_random_outs(std::vector<std::pair<crypto::hash, size_t> >& amount_outs, COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount& result_outs, uint64_t amount, size_t i);
     bool is_tx_spendtime_unlocked(uint64_t unlock_time);
     bool add_block_as_invalid(const block& bl, const crypto::hash& h);
