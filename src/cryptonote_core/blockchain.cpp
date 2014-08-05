@@ -48,6 +48,14 @@
 #include "crypto/hash.h"
 //#include "serialization/json_archive.h"
 
+/* TODO:
+ *  Clean up code:
+ *    Clarify where double spend check should be done, and only do it there.
+ *    Combine check_tx_inputs functions into one coherent function.
+ *    Possibly change how outputs are referred to/indexed in blockchain and wallets
+ *
+ */
+
 using namespace cryptonote;
 
 DISABLE_VS_WARNINGS(4267)
@@ -58,6 +66,7 @@ Blockchain::Blockchain(tx_memory_pool& tx_pool):m_db(), m_tx_pool(tx_pool), m_cu
 {
 }
 //------------------------------------------------------------------
+//TODO: is this still needed?  I don't think so - tewinget
 template<class archive_t>
 void Blockchain::serialize(archive_t & ar, const unsigned int version)
 {
@@ -136,6 +145,10 @@ transaction *Blockchain::get_tx(const crypto::hash &id)
   return &it->second.tx;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
+// This function makes sure that each "input" in an input (mixins) exists
+// and collects the public key for each from the transaction it was included in
+// via the visitor passed to it.
 template<class visitor_t>
 bool Blockchain::scan_outputkeys_for_indexes(const txin_to_key& tx_in_to_key, visitor_t& vis, uint64_t* pmax_related_block_height)
 {
@@ -181,6 +194,7 @@ uint64_t Blockchain::get_current_blockchain_height()
   return m_blocks.size();
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::init(const std::string& config_folder)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -285,6 +299,7 @@ bool Blockchain::reset_and_set_genesis_block(const block& b)
   return bvc.m_added_to_main_chain && !bvc.m_verification_failed;
 }
 //------------------------------------------------------------------
+//TODO: move to BlockchainDB subclass
 bool Blockchain::purge_transaction_keyimages_from_blockchain(const transaction& tx, bool strict_check)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -330,6 +345,10 @@ bool Blockchain::purge_transaction_keyimages_from_blockchain(const transaction& 
   return true;
 }
 //------------------------------------------------------------------
+//TODO: this functionality will be split between the BlockchainDB and this class.
+//      The BlockchainDB class will handle the actual removal, and the function
+//      in this class that removes a block from the blockchain will handle giving
+//      the transactions back to the transaction pool.
 bool Blockchain::purge_transaction_from_blockchain(const crypto::hash& tx_id)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -352,6 +371,9 @@ bool Blockchain::purge_transaction_from_blockchain(const crypto::hash& tx_id)
   return res;
 }
 //------------------------------------------------------------------
+//TODO: This functionality will be done in BlockchainDB, much like
+//      purge_transaction_from_blockchain above.  This function can
+//      be removed once that is in place.
 bool Blockchain::purge_block_data_from_blockchain(const block& bl, size_t processed_tx_count)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -386,6 +408,7 @@ crypto::hash Blockchain::get_tail_id()
   return id;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::get_short_chain_history(std::list<crypto::hash>& ids)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -458,6 +481,7 @@ void Blockchain::get_all_known_block_ids(std::list<crypto::hash> &main, std::lis
     invalid.push_back(v.first);
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 difficulty_type Blockchain::get_difficulty_for_next_block()
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -474,6 +498,7 @@ difficulty_type Blockchain::get_difficulty_for_next_block()
   return next_difficulty(timestamps, commulative_difficulties);
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::rollback_blockchain_switching(std::list<block>& original_chain, size_t rollback_height)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -495,6 +520,7 @@ bool Blockchain::rollback_blockchain_switching(std::list<block>& original_chain,
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::switch_to_alternative_blockchain(std::list<blocks_ext_by_hash::iterator>& alt_chain, bool discard_disconnected_chain)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -563,6 +589,7 @@ bool Blockchain::switch_to_alternative_blockchain(std::list<blocks_ext_by_hash::
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 difficulty_type Blockchain::get_next_difficulty_for_alternative_chain(const std::list<blocks_ext_by_hash::iterator>& alt_chain, block_extended_info& bei)
 {
   std::vector<uint64_t> timestamps;
@@ -608,6 +635,8 @@ difficulty_type Blockchain::get_next_difficulty_for_alternative_chain(const std:
   return next_difficulty(timestamps, commulative_difficulties);
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
+//  NOTE: possibly combine with validate_miner_transaction
 bool Blockchain::prevalidate_miner_transaction(const block& b, uint64_t height)
 {
   CHECK_AND_ASSERT_MES(b.miner_tx.vin.size() == 1, false, "coinbase transaction in the block has no inputs");
@@ -631,6 +660,8 @@ bool Blockchain::prevalidate_miner_transaction(const block& b, uint64_t height)
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
+//  NOTE: possibly combine with prevalidate_miner_transaction
 bool Blockchain::validate_miner_transaction(const block& b, size_t cumulative_block_size, uint64_t fee, uint64_t& base_reward, uint64_t already_generated_coins)
 {
   //validate reward
@@ -678,11 +709,13 @@ bool Blockchain::get_last_n_blocks_sizes(std::vector<size_t>& sz, size_t count)
   return get_backward_blocks_sizes(m_blocks.size() -1, sz, count);
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 uint64_t Blockchain::get_current_comulative_blocksize_limit()
 {
   return m_current_block_cumul_sz_limit;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::create_block_template(block& b, const account_public_address& miner_address, difficulty_type& diffic, uint64_t& height, const blobdata& ex_nonce)
 {
   size_t median_size;
@@ -802,6 +835,7 @@ bool Blockchain::create_block_template(block& b, const account_public_address& m
   return false;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::complete_timestamps_vector(uint64_t start_top_height, std::vector<uint64_t>& timestamps)
 {
 
@@ -822,6 +856,7 @@ bool Blockchain::complete_timestamps_vector(uint64_t start_top_height, std::vect
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id, block_verification_context& bvc)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -967,6 +1002,7 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::get_blocks(uint64_t start_offset, size_t count, std::list<block>& blocks, std::list<transaction>& txs)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -983,6 +1019,7 @@ bool Blockchain::get_blocks(uint64_t start_offset, size_t count, std::list<block
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::get_blocks(uint64_t start_offset, size_t count, std::list<block>& blocks)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -994,6 +1031,7 @@ bool Blockchain::get_blocks(uint64_t start_offset, size_t count, std::list<block
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::handle_get_objects(NOTIFY_REQUEST_GET_OBJECTS::request& arg, NOTIFY_RESPONSE_GET_OBJECTS::request& rsp)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -1044,6 +1082,7 @@ size_t Blockchain::get_alternative_blocks_count()
   return m_alternative_chains.size();
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::add_out_to_get_random_outs(std::vector<std::pair<crypto::hash, size_t> >& amount_outs, COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount& result_outs, uint64_t amount, size_t i)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -1065,6 +1104,7 @@ bool Blockchain::add_out_to_get_random_outs(std::vector<std::pair<crypto::hash, 
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 size_t Blockchain::find_end_of_allowed_index(const std::vector<std::pair<crypto::hash, size_t> >& amount_outs)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -1082,6 +1122,7 @@ size_t Blockchain::find_end_of_allowed_index(const std::vector<std::pair<crypto:
   return 0;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::get_random_outs_for_amounts(const COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::request& req, COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::response& res)
 {
   srand(static_cast<unsigned int>(time(NULL)));
@@ -1125,6 +1166,7 @@ bool Blockchain::get_random_outs_for_amounts(const COMMAND_RPC_GET_RANDOM_OUTPUT
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::find_blockchain_supplement(const std::list<crypto::hash>& qblock_ids, uint64_t& starter_offset)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -1254,6 +1296,7 @@ void Blockchain::print_blockchain_index()
   LOG_PRINT_L0("Current blockchain index:" << ENDL << ss.str());
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 void Blockchain::print_blockchain_outs(const std::string& file)
 {
   std::stringstream ss;
@@ -1277,6 +1320,7 @@ void Blockchain::print_blockchain_outs(const std::string& file)
   }
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::find_blockchain_supplement(const std::list<crypto::hash>& qblock_ids, NOTIFY_RESPONSE_CHAIN_ENTRY::request& resp)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -1290,6 +1334,7 @@ bool Blockchain::find_blockchain_supplement(const std::list<crypto::hash>& qbloc
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::find_blockchain_supplement(const uint64_t req_start_block, const std::list<crypto::hash>& qblock_ids, std::list<std::pair<block, std::list<transaction> > >& blocks, uint64_t& total_height, uint64_t& start_height, size_t max_count)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -1347,12 +1392,14 @@ bool Blockchain::have_block(const crypto::hash& id)
   return false;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::handle_block_to_main_chain(const block& bl, block_verification_context& bvc)
 {
   crypto::hash id = get_block_hash(bl);
   return handle_block_to_main_chain(bl, id, bvc);
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::push_transaction_to_global_outs_index(const transaction& tx, const crypto::hash& tx_id, std::vector<uint64_t>& global_indexes)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -1367,12 +1414,14 @@ bool Blockchain::push_transaction_to_global_outs_index(const transaction& tx, co
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 size_t Blockchain::get_total_transactions()
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
   return m_transactions.size();
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::get_outs(uint64_t amount, std::list<crypto::public_key>& pkeys)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -1392,6 +1441,9 @@ bool Blockchain::get_outs(uint64_t amount, std::list<crypto::public_key>& pkeys)
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
+//  NOTE: this function will probably be removed, as its functionality
+//  should be supplanted by BlockchainDB.
 bool Blockchain::pop_transaction_from_global_index(const transaction& tx, const crypto::hash& tx_id)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -1409,6 +1461,9 @@ bool Blockchain::pop_transaction_from_global_index(const transaction& tx, const 
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
+//  NOTE: this function will probably be removed, as its functionality
+//  should be supplanted by BlockchainDB.
 bool Blockchain::add_transaction_from_block(const transaction& tx, const crypto::hash& tx_id, const crypto::hash& bl_id, uint64_t bl_height)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -1463,6 +1518,7 @@ bool Blockchain::add_transaction_from_block(const transaction& tx, const crypto:
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::get_tx_outputs_gindexs(const crypto::hash& tx_id, std::vector<uint64_t>& indexs)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -1478,6 +1534,7 @@ bool Blockchain::get_tx_outputs_gindexs(const crypto::hash& tx_id, std::vector<u
   return true;
 }
 //------------------------------------------------------------------
+//TODO: refactor
 bool Blockchain::check_tx_inputs(const transaction& tx, uint64_t& max_used_block_height, crypto::hash& max_used_block_id)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -1499,12 +1556,18 @@ bool Blockchain::have_tx_keyimges_as_spent(const transaction &tx)
   return false;
 }
 //------------------------------------------------------------------
+//TODO: this function shouldn't exist.  At all.  check_tx_inputs below should
+//  be just fine taking the tx_prefix_hash struct out of the transaction as
+//  needed.  *sigh*
 bool Blockchain::check_tx_inputs(const transaction& tx, uint64_t* pmax_used_block_height)
 {
   crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx);
   return check_tx_inputs(tx, tx_prefix_hash, pmax_used_block_height);
 }
 //------------------------------------------------------------------
+//TODO: this function (and the other check_tx_inputs) could stand to be cleaned
+//      up a bit and clarified, but for now I'll leave this one alone as it
+//      does not reference any of the old blockchain class members directly.
 bool Blockchain::check_tx_inputs(const transaction& tx, const crypto::hash& tx_prefix_hash, uint64_t* pmax_used_block_height)
 {
   size_t sig_index = 0;
@@ -1537,6 +1600,7 @@ bool Blockchain::check_tx_inputs(const transaction& tx, const crypto::hash& tx_p
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::is_tx_spendtime_unlocked(uint64_t unlock_time)
 {
   if(unlock_time < CRYPTONOTE_MAX_BLOCK_NUMBER)
@@ -1558,6 +1622,9 @@ bool Blockchain::is_tx_spendtime_unlocked(uint64_t unlock_time)
   return false;
 }
 //------------------------------------------------------------------
+// This function locates all outputs associated with a given input (mixins)
+// and validates that they exist and are usable.  It also checks the ring
+// signature for each input.
 bool Blockchain::check_tx_input(const txin_to_key& txin, const crypto::hash& tx_prefix_hash, const std::vector<crypto::signature>& sig, uint64_t* pmax_related_block_height)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -1608,12 +1675,14 @@ bool Blockchain::check_tx_input(const txin_to_key& txin, const crypto::hash& tx_
   return crypto::check_ring_signature(tx_prefix_hash, txin.k_image, output_keys, sig.data());
 }
 //------------------------------------------------------------------
+//TODO: Is this intended to do something else?  Need to look into the todo there.
 uint64_t Blockchain::get_adjusted_time()
 {
   //TODO: add collecting median time
   return time(NULL);
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::check_block_timestamp_main(const block& b)
 {
   if(b.timestamp > get_adjusted_time() + CRYPTONOTE_BLOCK_FUTURE_TIME_LIMIT)
@@ -1630,6 +1699,7 @@ bool Blockchain::check_block_timestamp_main(const block& b)
   return check_block_timestamp(std::move(timestamps), b);
 }
 //------------------------------------------------------------------
+//TODO: What exactly is this checking?  Is this called anywhere?
 bool Blockchain::check_block_timestamp(std::vector<uint64_t> timestamps, const block& b)
 {
   if(timestamps.size() < BLOCKCHAIN_TIMESTAMP_CHECK_WINDOW)
@@ -1646,6 +1716,7 @@ bool Blockchain::check_block_timestamp(std::vector<uint64_t> timestamps, const b
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::handle_block_to_main_chain(const block& bl, const crypto::hash& id, block_verification_context& bvc)
 {
   TIME_MEASURE_START(block_processing_time);
@@ -1814,6 +1885,7 @@ bool Blockchain::handle_block_to_main_chain(const block& bl, const crypto::hash&
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::update_next_comulative_size_limit()
 {
   std::vector<size_t> sz;
@@ -1827,6 +1899,7 @@ bool Blockchain::update_next_comulative_size_limit()
   return true;
 }
 //------------------------------------------------------------------
+//TODO: rewrite using BlockchainDB
 bool Blockchain::add_new_block(const block& bl_, block_verification_context& bvc)
 {
   //copy block here to let modify block.target
