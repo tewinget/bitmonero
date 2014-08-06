@@ -36,9 +36,10 @@
  *
  * The DB interface is a store for the canonical block chain.
  * It serves as a persistent storage for the blockchain.
- * For the sake of efficiency, it also stores some blockchain data outside
- * of the blocks, such as spent transfer key images, unspent transaction
- * outputs, etc.
+ *
+ * For the sake of efficiency, the reference implementation will also
+ * store some blockchain data outside of the blocks, such as spent
+ * transfer key images, unspent transaction outputs, etc.
  *
  * Transactions are duplicated so that we don't have to fetch a whole block
  * in order to fetch a transaction from that block.  If this is deemed
