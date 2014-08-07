@@ -78,6 +78,7 @@
  *   block       get_block_from_height(height)
  *   size_t      get_block_size(height)
  *   difficulty  get_block_cumulative_difficulty(height)
+ *   difficulty  get_block_difficulty(height)
  *   uint64_t    get_block_already_generated_coins(height)
  *   uint64_t    get_block_timestamp(height) 
  *   hash        get_block_hash_from_height(height)
