@@ -90,12 +90,16 @@
  *
  * Transactions:
  *   bool        tx_exists(hash)
+ *   bool        tx_unlocked(hash)
  *   tx          get_tx(hash)
  *   tx_list     get_tx_list(hash_list)
  *
  * Outputs:
  *   index       get_random_output(amount)
  *   txout_key   get_output_key(index)
+ *   tx_out      get_output(tx_hash, index)
+ *   tx_out      get_output_global(global_index)
+ *
  *
  * Spent Output Key Images:
  *   bool        has_key_image(key_image)
@@ -368,6 +372,9 @@ protected:
   // return true if a transaction with hash <h> exists
   virtual bool tx_exists(const crypto::hash& h) = 0;
 
+  // return true if transaciton with hash <h> is unlocked
+  virtual bool tx_unlocked(const crypto::hash& h) = 0;
+
   // return tx with hash <h>
   // throw if no such tx exists
   virtual transaction get_tx(const crypto::hash& h) = 0;
@@ -383,6 +390,12 @@ protected:
 
   // return public key for output with global output index <index>
   virtual txout_to_key get_output_key(const uint64_t& index) = 0;
+
+  // returns the output indexed by <index> in the transaction with hash <h>
+  virtual tx_out get_output(const crypto::hash& h, const uint64_t& index) = 0;
+
+  // returns the output with global index <index>
+  virtual tx_out get_output_global(const uint64_t& index) = 0;
 
 
   // returns true if key image <img> is present in spent key images storage
