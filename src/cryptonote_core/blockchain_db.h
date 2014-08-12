@@ -31,6 +31,7 @@
 #include <exception>
 #include "crypto/hash.h"
 #include "cryptonote_core/cryptonote_basic.h"
+#include "cryptonote_core/difficulty.h"
 
 /* DB Driver Interface
  *
@@ -93,12 +94,13 @@
  *   bool        tx_unlocked(hash)
  *   tx          get_tx(hash)
  *   tx_list     get_tx_list(hash_list)
+ *   height      get_tx_block_height(hash)
  *
  * Outputs:
  *   index       get_random_output(amount)
  *   txout_key   get_output_key(index)
  *   tx_out      get_output(tx_hash, index)
- *   tx_out      get_output_global(global_index)
+ *   <txhash,index>      get_output_tx_and_index(amount, index)
  *
  *
  * Spent Output Key Images:
@@ -115,6 +117,7 @@
  *   BLOCK_INVALID -- considering making this multiple errors
  *   TX_DNE
  *   TX_EXISTS
+ *   OUTPUT_DNE
  */
 
 namespace cryptonote
@@ -283,6 +286,22 @@ class TX_EXISTS : public std::exception
     }
 };
 
+class OUTPUT_DNE : public std::exception
+{
+  private:
+    std::string m;
+  public:
+    OUTPUT_DNE() : m("The transaction requested does not exist") { }
+    OUTPUT_DNE(const char* s) : m(s) { }
+
+    virtual ~OUTPUT_DNE() { }
+
+    const char* what() const throw()
+    {
+      return m.c_str();
+    }
+};
+
 /***********************************
  * End of Exception Definitions
  ***********************************/
@@ -337,7 +356,7 @@ protected:
   virtual block get_block_from_height(const uint64_t& height) = 0;
 
   // return timestamp of block at height <height>
-  virtual uint64_t get_block_timestamp(height)  = 0;
+  virtual uint64_t get_block_timestamp(const uint64_t& height)  = 0;
 
   // return block size of block at height <height>
   virtual size_t get_block_size(const uint64_t& height) = 0;
@@ -384,6 +403,8 @@ protected:
   // or just skip that hash
   virtual std::list<transaction> get_tx_list(const std::list<crypto::hash>& hlist) = 0;
 
+  // returns height of block that contains transaction with hash <h>
+  virtual uint64_t get_tx_block_height(const crypto::hash& h) = 0;
 
   // return global output index of a random output of amount <amount>
   virtual uint64_t get_random_out(const uint64_t& amount) = 0;
@@ -394,8 +415,9 @@ protected:
   // returns the output indexed by <index> in the transaction with hash <h>
   virtual tx_out get_output(const crypto::hash& h, const uint64_t& index) = 0;
 
-  // returns the output with global index <index>
-  virtual tx_out get_output_global(const uint64_t& index) = 0;
+  // returns the transaction-local reference for the output with <amount> at <index>
+  // return type is pair of tx hash and index
+  virtual tx_out_index get_output_tx_and_index(const uint64_t& amount, const uint64_t& index) = 0;
 
 
   // returns true if key image <img> is present in spent key images storage
