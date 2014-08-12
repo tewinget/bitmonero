@@ -139,7 +139,6 @@ bool Blockchain::have_tx_keyimg_as_spent(const crypto::key_image &key_im)
   return  m_db->has_key_image(key_im);
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
 // This function makes sure that each "input" in an input (mixins) exists
 // and collects the public key for each from the transaction it was included in
 // via the visitor passed to it.
@@ -147,36 +146,67 @@ template<class visitor_t>
 bool Blockchain::scan_outputkeys_for_indexes(const txin_to_key& tx_in_to_key, visitor_t& vis, uint64_t* pmax_related_block_height)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  auto it = m_outputs.find(tx_in_to_key.amount);
-  if(it == m_outputs.end() || !tx_in_to_key.key_offsets.size())
+
+  // verify that the input has key offsets (that it exists properly, really)
+  if(!tx_in_to_key.key_offsets.size())
     return false;
 
+  // cryptonote_format_utils uses relative offsets for indexing to the global
+  // outputs list.  that is to say that absolute offset #2 is absolute offset
+  // #1 plus relative offset #2.
+  // TODO: Investigate if this is necessary / why this is done.
   std::vector<uint64_t> absolute_offsets = relative_output_offsets_to_absolute(tx_in_to_key.key_offsets);
 
 
-  std::vector<std::pair<crypto::hash, size_t> >& amount_outs_vec = it->second;
+  //std::vector<std::pair<crypto::hash, size_t> >& amount_outs_vec = it->second;
   size_t count = 0;
-  BOOST_FOREACH(uint64_t i, absolute_offsets)
+  for (const uint64_t& i : absolute_offsets)
   {
-    if(i >= amount_outs_vec.size() )
+    try
     {
-      LOG_PRINT_L0("Wrong index in transaction inputs: " << i << ", expected maximum " << amount_outs_vec.size() - 1);
+      // get tx hash and output index for output
+      auto output_index = m_db->get_output_tx_and_index(tx_in_to_key.amount, i);
+
+      // get tx that output is from
+      auto tx = m_db->get_transaction(output_index.first);
+
+      // make sure output index is within range for the given transaction
+      if (output_index.second >= tx.vout.size())
+      {
+        LOG_PRINT_L0("Output does not exist.  tx = " << output_index.first << ", index = " << output_index.second);
+        return false;
+      }
+
+      // call to the passed boost visitor to grab the public key for the output
+      if(!vis.handle_output(tx, tx.vout[output_index.second]))
+      {
+        LOG_PRINT_L0("Failed to handle_output for output no = " << count << ", with absolute offset " << i);
+        return false;
+      }
+
+      // if on last output and pmax_related_block_height not null pointer
+      if(++count == absolute_offsets.size() && pmax_related_block_height)
+      {
+        // set *pmax_related_block_height to tx block height for this output
+        auto h = m_db->get_tx_block_height(output_index.first);
+        if(*pmax_related_block_height < h)
+        {
+          *pmax_related_block_height = h;
+        }
+      }
+
+    }
+    catch (const OUTPUT_DNE& e)
+    {
+      LOG_PRINT_L0("Output with amount " << tx_in_to_key.amount << " and index " << i << " does not exist!");
       return false;
     }
-    transactions_container::iterator tx_it = m_transactions.find(amount_outs_vec[i].first);
-    CHECK_AND_ASSERT_MES(tx_it != m_transactions.end(), false, "Wrong transaction id in output indexes: " << epee::string_tools::pod_to_hex(amount_outs_vec[i].first));
-    CHECK_AND_ASSERT_MES(amount_outs_vec[i].second < tx_it->second.tx.vout.size(), false,
-      "Wrong index in transaction outputs: " << amount_outs_vec[i].second << ", expected less then " << tx_it->second.tx.vout.size());
-    if(!vis.handle_output(tx_it->second.tx, tx_it->second.tx.vout[amount_outs_vec[i].second]))
+    catch (const TX_DNE& e)
     {
-      LOG_PRINT_L0("Failed to handle_output for output no = " << count << ", with absolute offset " << i);
+      LOG_PRINT_L0("Transaction with hash " << output_index.first << " does not exist!");
       return false;
     }
-    if(count++ == absolute_offsets.size()-1 && pmax_related_block_height)
-    {
-      if(*pmax_related_block_height < tx_it->second.m_keeper_block_height)
-        *pmax_related_block_height = tx_it->second.m_keeper_block_height;
-    }
+
   }
 
   return true;
