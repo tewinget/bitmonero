@@ -157,6 +157,8 @@ namespace cryptonote
 
   };
 
+  typedef std::pair<crypto::hash, uint64_t> tx_out_index;
+
   class transaction_prefix
   {
 
