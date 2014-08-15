@@ -72,7 +72,7 @@
  *
  * Blocks:
  *   bool        block_exists(hash)
- *   height      add_block(block, block_size, cumulative_difficulty, coins_generated)
+ *   height      add_block(block, block_size, cumulative_difficulty, coins_generated, transactions)
  *   block       get_block(hash)
  *   height      get_block_height(hash)
  *   header      get_block_header(hash)
@@ -87,7 +87,7 @@
  *   hashes      get_hashes_range(height1, height2)
  *   hash        top_block_hash()
  *   height      height()
- *   block       pop_block()
+ *   tx_list     pop_block()
  *
  * Transactions:
  *   bool        tx_exists(hash)
@@ -337,7 +337,12 @@ protected:
 
 
   // adds a block with the given metadata to the top of the blockchain, returns the new height
-  virtual uint64_t add_block(const block& blk, const size_t& block_size, const difficulty_type& cumulative_difficulty, const uint64_t& coins_generated) = 0;
+  virtual uint64_t add_block( const block& blk
+                            , const size_t& block_size
+                            , const difficulty_type& cumulative_difficulty
+                            , const uint64_t& coins_generated
+                            , const std::vector<transaction>& txs
+                            ) = 0;
 
   // return true if a block with hash <h> exists in the blockchain
   virtual bool block_exists(const crypto::hash& h) = 0;
@@ -383,9 +388,9 @@ protected:
   virtual uint64_t height() = 0;
 
   // pops the top block off the blockchain and removes its associated transactions
-  // returns the block, so that the blockchain can do any cleanup such as returning
+  // returns the transactions from the block, so that the blockchain can return
   // any transactions in that block to the tx pool.
-  virtual block pop_block() = 0;
+  virtual std::vector<transaction> pop_block() = 0;
 
 
   // return true if a transaction with hash <h> exists
