@@ -82,6 +82,7 @@
  *   difficulty  get_block_difficulty(height)
  *   uint64_t    get_block_already_generated_coins(height)
  *   uint64_t    get_block_timestamp(height) 
+ *   uint64_t    get_top_block_timestamp()
  *   hash        get_block_hash_from_height(height)
  *   blocks      get_blocks_range(height1, height2)
  *   hashes      get_hashes_range(height1, height2)
@@ -100,7 +101,7 @@
  *   index       get_random_output(amount)
  *   txout_key   get_output_key(index)
  *   tx_out      get_output(tx_hash, index)
- *   <txhash,index>      get_output_tx_and_index(amount, index)
+ *   hash,index  get_output_tx_and_index(amount, index)
  *
  *
  * Spent Output Key Images:
@@ -363,6 +364,9 @@ protected:
   // return timestamp of block at height <height>
   virtual uint64_t get_block_timestamp(const uint64_t& height)  = 0;
 
+  // return timestamp of most recent block
+  virtual uint64_t get_top_block_timestamp() = 0;
+
   // return block size of block at height <height>
   virtual size_t get_block_size(const uint64_t& height) = 0;
 
@@ -384,7 +388,10 @@ protected:
   // return the hash of the top block on the chain
   virtual crypto::hash top_block_hash() = 0;
 
-  // return the height of the top block on the chain
+  // return the index of the top block on the chain
+  // NOTE: for convenience using heights as indices, this is not the total
+  // size of the blockchain, but rather the index of the top block.  As the
+  // chain is 0-indexed, the total size will be height() + 1.
   virtual uint64_t height() = 0;
 
   // pops the top block off the blockchain and removes its associated transactions
