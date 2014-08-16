@@ -218,22 +218,38 @@ uint64_t Blockchain::get_current_blockchain_height()
   return m_db->height();
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
+//FIXME: possibly move this into the constructor, to avoid accidentally
+//       dereferencing a null BlockchainDB pointer
 bool Blockchain::init(const std::string& config_folder)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
+
   m_config_folder = config_folder;
   LOG_PRINT_L0("Loading blockchain...");
+
+  //FIXME: update filename for BlockchainDB
   const std::string filename = m_config_folder + "/" CRYPTONOTE_BLOCKCHAINDATA_FILENAME;
-  if(!tools::unserialize_obj_from_file(*this, filename))
+  try
   {
-      LOG_PRINT_L0("Can't load blockchain storage from file, generating genesis block.");
-      block bl = boost::value_initialized<block>();
-      block_verification_context bvc = boost::value_initialized<block_verification_context>();
-      generate_genesis_block(bl);
-      add_new_block(bl, bvc);
-      CHECK_AND_ASSERT_MES(!bvc.m_verification_failed && bvc.m_added_to_main_chain, false, "Failed to add genesis block to blockchain");
+    m_db->open(filename);
   }
+  catch (const DB_OPEN_FAILURE& e)
+  {
+    LOG_PRINT_L0("No blockchain file found, attempting to create one.");
+    try
+    {
+      m_db->create(filename);
+    }
+    catch (const DB_CREATE_FAILURE& db_create_error)
+    {
+      LOG_PRINT_L0("Unable to create BlockchainDB!  This is not good...");
+      //TODO: make sure whatever calls this handles the return value properly
+      return false;
+    }
+  }
+
+  // if the blockchain is new, add the genesis block
+  // this feels kinda kludgy to do it this way, but can be looked at later.
   if(!m_db->height())
   {
     LOG_PRINT_L0("Blockchain not loaded, generating genesis block.");
@@ -243,10 +259,16 @@ bool Blockchain::init(const std::string& config_folder)
     add_new_block(bl, bvc);
     CHECK_AND_ASSERT_MES(!bvc.m_verification_failed, false, "Failed to add genesis block to blockchain");
   }
-  uint64_t timestamp_diff = time(NULL) - m_blocks.back().bl.timestamp;
-  if(!m_blocks.back().bl.timestamp)
+
+  // check how far behind we are
+  uint64_t top_block_timestamp = m_db->get_top_block_timestamp();
+  uint64_t timestamp_diff = time(NULL) - top_block_timestamp;
+
+  // genesis block has no timestamp, could probably change it to have timestamp of 1341378000...
+  if(!top_block_timestamp)
     timestamp_diff = time(NULL) - 1341378000;
   LOG_PRINT_GREEN("Blockchain initialized. last block: " << m_db->height() - 1 << ", " << epee::misc_utils::get_time_interval_string(timestamp_diff) << " time ago, current difficulty: " << get_difficulty_for_next_block(), LOG_LEVEL_0);
+
   return true;
 }
 //------------------------------------------------------------------
