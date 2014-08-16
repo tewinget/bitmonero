@@ -100,14 +100,14 @@ void Blockchain::serialize(archive_t & ar, const unsigned int version)
       {
         LOG_ERROR("Blockchain storage data corruption detected. total_count loaded from file = " << total_check_count_loaded << ", expected = " << total_check_count);
 
-        LOG_PRINT_L0("Blockchain storage:" << ENDL << 
-          "m_blocks: " << m_db->height() << ENDL  << 
-          "m_blocks_index: " << m_blocks_index.size() << ENDL  << 
-          "m_transactions: " << m_transactions.size() << ENDL  << 
-          "m_spent_keys: " << m_spent_keys.size() << ENDL  << 
-          "m_alternative_chains: " << m_alternative_chains.size() << ENDL  << 
-          "m_outputs: " << m_outputs.size() << ENDL  << 
-          "m_invalid_blocks: " << m_invalid_blocks.size() << ENDL  << 
+        LOG_PRINT_L0("Blockchain storage:" << std::endl << 
+          "m_blocks: " << m_db->height() << std::endl  << 
+          "m_blocks_index: " << m_blocks_index.size() << std::endl  << 
+          "m_transactions: " << m_transactions.size() << std::endl  << 
+          "m_spent_keys: " << m_spent_keys.size() << std::endl  << 
+          "m_alternative_chains: " << m_alternative_chains.size() << std::endl  << 
+          "m_outputs: " << m_outputs.size() << std::endl  << 
+          "m_invalid_blocks: " << m_invalid_blocks.size() << std::endl  << 
           "m_current_block_cumul_sz_limit: " << m_current_block_cumul_sz_limit);
 
         throw std::runtime_error("Blockchain data corruption");
@@ -116,14 +116,14 @@ void Blockchain::serialize(archive_t & ar, const unsigned int version)
   }
 
 
-  LOG_PRINT_L2("Blockchain storage:" << ENDL << 
-      "m_blocks: " << m_db->height() << ENDL  << 
-      "m_blocks_index: " << m_blocks_index.size() << ENDL  << 
-      "m_transactions: " << m_transactions.size() << ENDL  << 
-      "m_spent_keys: " << m_spent_keys.size() << ENDL  << 
-      "m_alternative_chains: " << m_alternative_chains.size() << ENDL  << 
-      "m_outputs: " << m_outputs.size() << ENDL  << 
-      "m_invalid_blocks: " << m_invalid_blocks.size() << ENDL  << 
+  LOG_PRINT_L2("Blockchain storage:" << std::endl << 
+      "m_blocks: " << m_db->height() << std::endl  << 
+      "m_blocks_index: " << m_blocks_index.size() << std::endl  << 
+      "m_transactions: " << m_transactions.size() << std::endl  << 
+      "m_spent_keys: " << m_spent_keys.size() << std::endl  << 
+      "m_alternative_chains: " << m_alternative_chains.size() << std::endl  << 
+      "m_outputs: " << m_outputs.size() << std::endl  << 
+      "m_invalid_blocks: " << m_invalid_blocks.size() << std::endl  << 
       "m_current_block_cumul_sz_limit: " << m_current_block_cumul_sz_limit);
 }
 //------------------------------------------------------------------
@@ -398,7 +398,7 @@ bool Blockchain::purge_transaction_from_blockchain(const crypto::hash& tx_id)
 
   bool res = pop_transaction_from_global_index(tx, tx_id);
   m_transactions.erase(tx_index_it);
-  LOG_PRINT_L1("Removed transaction from blockchain history:" << tx_id << ENDL);
+  LOG_PRINT_L1("Removed transaction from blockchain history:" << tx_id << std::endl);
   return res;
 }
 //------------------------------------------------------------------
@@ -932,8 +932,8 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
   if (!m_checkpoints.is_alternative_block_allowed(get_current_blockchain_height(), block_height))
   {
     LOG_PRINT_RED_L0("Block with id: " << id
-      << ENDL << " can't be accepted for alternative chain, block height: " << block_height
-      << ENDL << " blockchain height: " << get_current_blockchain_height());
+      << std::endl << " can't be accepted for alternative chain, block height: " << block_height
+      << std::endl << " blockchain height: " << get_current_blockchain_height());
     bvc.m_verification_failed = true;
     return false;
   }
@@ -974,7 +974,7 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
     if(!check_block_timestamp(timestamps, b))
     {
       LOG_PRINT_RED_L0("Block with id: " << id
-        << ENDL << " for alternative chain, have invalid timestamp: " << b.timestamp);
+        << std::endl << " for alternative chain, have invalid timestamp: " << b.timestamp);
       //add_block_as_invalid(b, id);//do not add blocks to invalid storage before proof of work check was passed
       bvc.m_verification_failed = true;
       return false;
@@ -1001,8 +1001,8 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
     if(!check_hash(proof_of_work, current_diff))
     {
       LOG_PRINT_RED_L0("Block with id: " << id
-        << ENDL << " for alternative chain, have not enough proof of work: " << proof_of_work
-        << ENDL << " expected difficulty: " << current_diff);
+        << std::endl << " for alternative chain, have not enough proof of work: " << proof_of_work
+        << std::endl << " expected difficulty: " << current_diff);
       bvc.m_verification_failed = true;
       return false;
     }
@@ -1040,7 +1040,7 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
     {
       //do reorganize!
       LOG_PRINT_GREEN("###### REORGANIZE on height: " << alt_chain.front()->second.height << " of " << m_db->height() - 1 << " with cum_difficulty " << m_blocks.back().cumulative_difficulty
-        << ENDL << " alternative blockchain size: " << alt_chain.size() << " with cum_difficulty " << bei.cumulative_difficulty, LOG_LEVEL_0);
+        << std::endl << " alternative blockchain size: " << alt_chain.size() << " with cum_difficulty " << bei.cumulative_difficulty, LOG_LEVEL_0);
       bool r = switch_to_alternative_blockchain(alt_chain, false);
       if(r) bvc.m_added_to_main_chain = true;
       else bvc.m_verification_failed = true;
@@ -1048,9 +1048,9 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
     }else
     {
       LOG_PRINT_BLUE("----- BLOCK ADDED AS ALTERNATIVE ON HEIGHT " << bei.height
-        << ENDL << "id:\t" << id
-        << ENDL << "PoW:\t" << proof_of_work
-        << ENDL << "difficulty:\t" << current_diff, LOG_LEVEL_0);
+        << std::endl << "id:\t" << id
+        << std::endl << "PoW:\t" << proof_of_work
+        << std::endl << "difficulty:\t" << current_diff, LOG_LEVEL_0);
       return true;
     }
   }else
@@ -1106,7 +1106,7 @@ bool Blockchain::handle_get_objects(NOTIFY_REQUEST_GET_OBJECTS::request& arg, NO
     std::list<transaction> txs;
     get_transactions(bl.tx_hashes, txs, rsp.missed_ids);
     CHECK_AND_ASSERT_MES(!missed_tx_id.size(), false, "Internal error: have missed missed_tx_id.size()=" << missed_tx_id.size()
-      << ENDL << "for block id = " << get_block_hash(bl));
+      << std::endl << "for block id = " << get_block_hash(bl));
    rsp.blocks.push_back(block_complete_entry());
    block_complete_entry& e = rsp.blocks.back();
    //pack block
@@ -1148,7 +1148,7 @@ bool Blockchain::add_out_to_get_random_outs(std::vector<std::pair<crypto::hash, 
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
   transactions_container::iterator tx_it = m_transactions.find(amount_outs[i].first);
-  CHECK_AND_ASSERT_MES(tx_it != m_transactions.end(), false, "internal error: transaction with id " << amount_outs[i].first << ENDL <<
+  CHECK_AND_ASSERT_MES(tx_it != m_transactions.end(), false, "internal error: transaction with id " << amount_outs[i].first << std::endl <<
     ", used in mounts global index for amount=" << amount << ": i=" << i << "not found in transactions index");
   CHECK_AND_ASSERT_MES(tx_it->second.tx.vout.size() > amount_outs[i].second, false, "internal error: in global outs index, transaction out index="
     << amount_outs[i].second << " more than transaction outputs = " << tx_it->second.tx.vout.size() << ", for tx id = " << amount_outs[i].first);
@@ -1240,9 +1240,9 @@ bool Blockchain::find_blockchain_supplement(const std::list<crypto::hash>& qbloc
   //check genesis match
   if(qblock_ids.back() != get_block_hash(m_blocks[0].bl))
   {
-    LOG_ERROR("Client sent wrong NOTIFY_REQUEST_CHAIN: genesis block missmatch: " << ENDL << "id: "
-      << qblock_ids.back() << ", " << ENDL << "expected: " << get_block_hash(m_blocks[0].bl)
-      << "," << ENDL << " dropping connection");
+    LOG_ERROR("Client sent wrong NOTIFY_REQUEST_CHAIN: genesis block missmatch: " << std::endl << "id: "
+      << qblock_ids.back() << ", " << std::endl << "expected: " << get_block_hash(m_blocks[0].bl)
+      << "," << std::endl << " dropping connection");
     return false;
   }
 
@@ -1347,7 +1347,7 @@ void Blockchain::print_blockchain(uint64_t start_index, uint64_t end_index)
        << ", tx_count " << m_db->get_block_from_height(i).tx_hashes.size()
        << std::endl;
   }
-  LOG_PRINT_L1("Current blockchain:" << ENDL << ss.str());
+  LOG_PRINT_L1("Current blockchain:" << std::endl << ss.str());
   LOG_PRINT_L0("Blockchain printed with log level 1");
 }
 //------------------------------------------------------------------
@@ -1375,9 +1375,9 @@ void Blockchain::print_blockchain_outs(const std::string& file)
     const std::vector<std::pair<crypto::hash, size_t> >& vals = v.second;
     if(vals.size())
     {
-      ss << "amount: " <<  v.first << ENDL;
+      ss << "amount: " <<  v.first << std::endl;
       for(size_t i = 0; i != vals.size(); i++)
-        ss << "\t" << vals[i].first << ": " << vals[i].second << ENDL;
+        ss << "\t" << vals[i].first << ": " << vals[i].second << std::endl;
     }
   }
   if(epee::file_io_utils::save_string_to_file(file, ss.str()))
@@ -1439,7 +1439,7 @@ bool Blockchain::add_block_as_invalid(const block_extended_info& bei, const cryp
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
   auto i_res = m_invalid_blocks.insert(std::map<crypto::hash, block_extended_info>::value_type(h, bei));
   CHECK_AND_ASSERT_MES(i_res.second, false, "at insertion invalid by tx returned status existed");
-  LOG_PRINT_L0("BLOCK ADDED AS INVALID: " << h << ENDL << ", prev_id=" << bei.bl.prev_id << ", m_invalid_blocks count=" << m_invalid_blocks.size());
+  LOG_PRINT_L0("BLOCK ADDED AS INVALID: " << h << std::endl << ", prev_id=" << bei.bl.prev_id << ", m_invalid_blocks count=" << m_invalid_blocks.size());
   return true;
 }
 //------------------------------------------------------------------
