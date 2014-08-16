@@ -127,7 +127,6 @@ namespace cryptonote
     bool get_tx_outputs_gindexs(const crypto::hash& tx_id, std::vector<uint64_t>& indexs);
     bool store_blockchain();
     bool check_tx_input(const txin_to_key& txin, const crypto::hash& tx_prefix_hash, const std::vector<crypto::signature>& sig, uint64_t* pmax_related_block_height = NULL);
-    bool check_tx_inputs(const transaction& tx, const crypto::hash& tx_prefix_hash, uint64_t* pmax_used_block_height = NULL);
     bool check_tx_inputs(const transaction& tx, uint64_t* pmax_used_block_height = NULL);
     bool check_tx_inputs(const transaction& tx, uint64_t& pmax_used_block_height, crypto::hash& max_used_block_id);
     uint64_t get_current_comulative_blocksize_limit();
@@ -203,11 +202,12 @@ namespace cryptonote
     bool add_block_as_invalid(const block& bl, const crypto::hash& h);
     bool add_block_as_invalid(const block_extended_info& bei, const crypto::hash& h);
     size_t find_end_of_allowed_index(const std::vector<std::pair<crypto::hash, size_t> >& amount_outs);
-    bool check_block_timestamp_main(const block& b);
-    bool check_block_timestamp(std::vector<uint64_t> timestamps, const block& b);
+    bool check_block_timestamp(const block& b);
     uint64_t get_adjusted_time();
     bool complete_timestamps_vector(uint64_t start_height, std::vector<uint64_t>& timestamps);
     bool update_next_comulative_size_limit();
+
+    bool check_for_double_spend(const transaction& tx, key_images_container& keys_this_block);
   };
 
 
