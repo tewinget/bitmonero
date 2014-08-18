@@ -792,8 +792,8 @@ void Blockchain::get_last_n_blocks_sizes(std::vector<size_t>& sz, size_t count)
 }
 //------------------------------------------------------------------
 //TODO: rewrite using BlockchainDB
-// need to rename comulative->cumulative, but that touches other files
-uint64_t Blockchain::get_current_comulative_blocksize_limit()
+// need to rename cumulative->cumulative, but that touches other files
+uint64_t Blockchain::get_current_cumulative_blocksize_limit()
 {
   return m_current_block_cumul_sz_limit;
 }
@@ -1971,7 +1971,7 @@ bool Blockchain::handle_block_to_main_chain(const block& bl, const crypto::hash&
   if(m_db->height())
     cumulative_difficulty += m_db->get_block_difficulty(m_db->height());
 
-  update_next_comulative_size_limit();
+  update_next_cumulative_size_limit();
 
   TIME_MEASURE_FINISH(block_processing_time);
 
@@ -2019,7 +2019,7 @@ bool Blockchain::handle_block_to_main_chain(const block& bl, const crypto::hash&
 }
 //------------------------------------------------------------------
 //TODO: rewrite using BlockchainDB
-bool Blockchain::update_next_comulative_size_limit()
+bool Blockchain::update_next_cumulative_size_limit()
 {
   std::vector<size_t> sz;
   get_last_n_blocks_sizes(sz, CRYPTONOTE_REWARD_BLOCKS_WINDOW);

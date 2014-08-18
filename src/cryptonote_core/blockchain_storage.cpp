@@ -579,7 +579,7 @@ bool blockchain_storage::get_last_n_blocks_sizes(std::vector<size_t>& sz, size_t
   return get_backward_blocks_sizes(m_blocks.size() -1, sz, count);
 }
 //------------------------------------------------------------------
-uint64_t blockchain_storage::get_current_comulative_blocksize_limit()
+uint64_t blockchain_storage::get_current_cumulative_blocksize_limit()
 {
   return m_current_block_cumul_sz_limit;
 }
@@ -1655,7 +1655,7 @@ bool blockchain_storage::handle_block_to_main_chain(const block& bl, const crypt
   }
 
   m_blocks.push_back(bei);
-  update_next_comulative_size_limit();
+  update_next_cumulative_size_limit();
   TIME_MEASURE_FINISH(block_processing_time);
   LOG_PRINT_L1("+++++ BLOCK SUCCESSFULLY ADDED" << ENDL << "id:\t" << id
     << ENDL << "PoW:\t" << proof_of_work
@@ -1673,7 +1673,7 @@ bool blockchain_storage::handle_block_to_main_chain(const block& bl, const crypt
   return true;
 }
 //------------------------------------------------------------------
-bool blockchain_storage::update_next_comulative_size_limit()
+bool blockchain_storage::update_next_cumulative_size_limit()
 {
   std::vector<size_t> sz;
   get_last_n_blocks_sizes(sz, CRYPTONOTE_REWARD_BLOCKS_WINDOW);

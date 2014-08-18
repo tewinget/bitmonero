@@ -131,7 +131,7 @@ namespace cryptonote
     bool check_tx_inputs(const transaction& tx, const crypto::hash& tx_prefix_hash, uint64_t* pmax_used_block_height = NULL);
     bool check_tx_inputs(const transaction& tx, uint64_t* pmax_used_block_height = NULL);
     bool check_tx_inputs(const transaction& tx, uint64_t& pmax_used_block_height, crypto::hash& max_used_block_id);
-    uint64_t get_current_comulative_blocksize_limit();
+    uint64_t get_current_cumulative_blocksize_limit();
     bool is_storing_blockchain(){return m_is_blockchain_storing;}
     uint64_t block_difficulty(size_t i);
 
@@ -241,7 +241,7 @@ namespace cryptonote
     bool check_block_timestamp(std::vector<uint64_t> timestamps, const block& b);
     uint64_t get_adjusted_time();
     bool complete_timestamps_vector(uint64_t start_height, std::vector<uint64_t>& timestamps);
-    bool update_next_comulative_size_limit();
+    bool update_next_cumulative_size_limit();
   };
 
 
