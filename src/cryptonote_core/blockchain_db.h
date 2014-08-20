@@ -94,6 +94,7 @@
  *   bool        tx_exists(hash)
  *   bool        tx_unlocked(hash)
  *   tx          get_tx(hash)
+ *   uint64_t    get_tx_count()
  *   tx_list     get_tx_list(hash_list)
  *   height      get_tx_block_height(hash)
  *
@@ -413,6 +414,9 @@ protected:
   // return tx with hash <h>
   // throw if no such tx exists
   virtual transaction get_tx(const crypto::hash& h) = 0;
+
+  // returns the total number of transactions in all blocks
+  virtual uint64_t get_tx_count() = 0;
 
   // return list of tx with hashes <hlist>.
   // TODO: decide if a missing hash means return empty list
