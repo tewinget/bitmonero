@@ -438,33 +438,43 @@ crypto::hash Blockchain::get_tail_id()
   return m_db->top_block_hash();
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
+/*TODO: this function was...poorly written.  As such, I'm not entirely
+ *      certain on what it was supposed to be doing.  Need to look into this,
+ *      but it doesn't seem terribly important just yet.
+ *
+ * puts into list <ids> a list of hashes representing certain blocks
+ * from the blockchain in reverse chronological order
+ *
+ * the blocks chosen, at the time of this writing, are:
+ *   the most recent 11
+ *   powers of 2 less recent from there, so 13, 17, 25, etc...
+ *
+ */
 bool Blockchain::get_short_chain_history(std::list<crypto::hash>& ids)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  size_t i = 0;
-  size_t current_multiplier = 1;
-  size_t sz = m_db->height();
+  uint64_t i = 0;
+  uint64_t current_multiplier = 1;
+  uint64_t sz = m_db->height();
+
   if(!sz)
     return true;
-  size_t current_back_offset = 1;
-  bool genesis_included = false;
+
+  uint64_t current_back_offset = 0;
   while(current_back_offset < sz)
   {
-    ids.push_back(get_block_hash(m_blocks[sz-current_back_offset].bl));
-    if(sz-current_back_offset == 0)
-      genesis_included = true;
+    ids.push_back(m_db->get_block_hash_from_height(sz-current_back_offset));
     if(i < 10)
     {
       ++current_back_offset;
-    }else
+    }
+    else
     {
-      current_back_offset += current_multiplier *= 2;
+      current_multiplier *= 2;
+      current_back_offset += current_multiplier;
     }
     ++i;
   }
-  if(!genesis_included)
-    ids.push_back(get_block_hash(m_blocks[0].bl));
 
   return true;
 }
@@ -474,20 +484,26 @@ crypto::hash Blockchain::get_block_id_by_height(uint64_t height)
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
   try
   {
-    return m_db->get_block_from_height(height);
+    return m_db->get_block_hash_from_height(height);
   }
-  catch (BLOCK_DNE e)
+  catch (const BLOCK_DNE& e)
   {
   }
-  catch (std::exception e)
+  catch (const std::exception& e)
   {
     LOG_PRINT_L0(std::string("Something went wrong fetching block hash by height: ") + e.what());
+    throw;
+  }
+  catch (...)
+  {
+    LOG_PRINT_L0(std::string("Something went wrong fetching block hash by height"));
     throw;
   }
   return null_hash;
 }
 //------------------------------------------------------------------
-bool Blockchain::get_block_by_hash(const crypto::hash &h, block &blk) {
+bool Blockchain::get_block_by_hash(const crypto::hash &h, block &blk)
+{
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
 
   // try to find block in main chain
@@ -497,7 +513,7 @@ bool Blockchain::get_block_by_hash(const crypto::hash &h, block &blk) {
     return true;
   }
   // try to find block in alternative chain
-  catch (BLOCK_DNE e)
+  catch (const BLOCK_DNE& e)
   {
     blocks_ext_by_hash::const_iterator it_alt = m_alternative_chains.find(h);
     if (m_alternative_chains.end() != it_alt) {
@@ -505,16 +521,22 @@ bool Blockchain::get_block_by_hash(const crypto::hash &h, block &blk) {
       return true;
     }
   }
-  catch (std::exception e)
+  catch (const std::exception& e)
   {
     LOG_PRINT_L0(std::string("Something went wrong fetching block by hash: ") + e.what());
+    throw;
+  }
+  catch (...)
+  {
+    LOG_PRINT_L0(std::string("Something went wrong fetching block hash by hash"));
     throw;
   }
 
   return false;
 }
 //------------------------------------------------------------------
-void Blockchain::get_all_known_block_ids(std::list<crypto::hash> &main, std::list<crypto::hash> &alt, std::list<crypto::hash> &invalid) {
+void Blockchain::get_all_known_block_ids(std::list<crypto::hash> &main, std::list<crypto::hash> &alt, std::list<crypto::hash> &invalid)
+{
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
 
   main = m_db->get_hashes_range(0, m_db->height());
@@ -1136,36 +1158,43 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
   return true;
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
 bool Blockchain::get_blocks(uint64_t start_offset, size_t count, std::list<block>& blocks, std::list<transaction>& txs)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  if(start_offset >= m_db->height())
+  if(start_offset > m_db->height())
     return false;
-  for(size_t i = start_offset; i < start_offset + count && i < m_db->height();i++)
+
+  if (!get_blocks(start_offset, count, blocks))
   {
-    blocks.push_back(m_blocks[i].bl);
+    return false;
+  }
+
+  for(const block& blk : blocks)
+  {
     std::list<crypto::hash> missed_ids;
-    get_transactions(m_blocks[i].bl.tx_hashes, txs, missed_ids);
+    get_transactions(blk.tx_hashes, txs, missed_ids);
     CHECK_AND_ASSERT_MES(!missed_ids.size(), false, "have missed transactions in own block in main blockchain");
   }
 
   return true;
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
 bool Blockchain::get_blocks(uint64_t start_offset, size_t count, std::list<block>& blocks)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  if(start_offset >= m_db->height())
+  if(start_offset > m_db->height())
     return false;
 
-  for(size_t i = start_offset; i < start_offset + count && i < m_db->height();i++)
-    blocks.push_back(m_blocks[i].bl);
+  for(size_t i = start_offset; i < start_offset + count && i <= m_db->height();i++)
+  {
+    blocks.push_back(m_db->get_block_from_height(i));
+  }
   return true;
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
+//TODO: This function *looks* like it won't need to be rewritten
+//      to use BlockchainDB, as it calls other functions that were,
+//      but it warrants some looking into later.
 bool Blockchain::handle_get_objects(NOTIFY_REQUEST_GET_OBJECTS::request& arg, NOTIFY_RESPONSE_GET_OBJECTS::request& rsp)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -1540,11 +1569,10 @@ bool Blockchain::handle_block_to_main_chain(const block& bl, block_verification_
   return handle_block_to_main_chain(bl, id, bvc);
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
 size_t Blockchain::get_total_transactions()
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  return m_transactions.size();
+  return m_db->get_tx_count();
 }
 //------------------------------------------------------------------
 //TODO: rewrite using BlockchainDB
