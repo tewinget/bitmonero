@@ -739,6 +739,7 @@ bool Blockchain::prevalidate_miner_transaction(const block& b, uint64_t height)
   return true;
 }
 //------------------------------------------------------------------
+// This function validates the miner transaction reward
 bool Blockchain::validate_miner_transaction(const block& b, size_t cumulative_block_size, uint64_t fee, uint64_t& base_reward, uint64_t already_generated_coins)
 {
   //validate reward
@@ -766,14 +767,8 @@ bool Blockchain::validate_miner_transaction(const block& b, size_t cumulative_bl
   return true;
 }
 //------------------------------------------------------------------
-void Blockchain::get_backward_blocks_sizes(size_t from_height, std::vector<size_t>& sz, size_t count)
-{
-  CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  auto h = m_db->height();
-  CHECK_AND_ASSERT_MES(from_height < h, false, "Internal error: get_backward_blocks_sizes called with from_height=" << from_height << ", blockchain height = " << h);
-
-}
-//------------------------------------------------------------------
+// get the block sizes of the last <count> blocks, starting at <from_height>
+// and return by reference <sz>.
 void Blockchain::get_last_n_blocks_sizes(std::vector<size_t>& sz, size_t count)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -784,15 +779,13 @@ void Blockchain::get_last_n_blocks_sizes(std::vector<size_t>& sz, size_t count)
     return;
 
   // add size of last <count> blocks to vector <sz> (or less, if blockchain size < count)
-  size_t stop_offset = h - std::min(h, count - 1);
-  for(size_t i = h; i >= stop_offset; --i)
+  size_t start_offset = (h+1) - std::min((h+1), count);
+  for(size_t i = start_offset; i <= h; i++)
   {
-    sz.push_front(m_db->get_block_size(i));
+    sz.push_back(m_db->get_block_size(i));
   }
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
-// need to rename cumulative->cumulative, but that touches other files
 uint64_t Blockchain::get_current_cumulative_blocksize_limit()
 {
   return m_current_block_cumul_sz_limit;
@@ -1666,13 +1659,14 @@ bool Blockchain::check_tx_inputs(const transaction& tx, uint64_t* pmax_used_bloc
   return true;
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
+// This function checks to see if a tx is unlocked.  unlock_time is either
+// a block index or a unix time.
 bool Blockchain::is_tx_spendtime_unlocked(uint64_t unlock_time)
 {
   if(unlock_time < CRYPTONOTE_MAX_BLOCK_NUMBER)
   {
     //interpret as block index
-    if(get_current_blockchain_height()-1 + CRYPTONOTE_LOCKED_TX_ALLOWED_DELTA_BLOCKS >= unlock_time)
+    if(get_current_blockchain_height() + CRYPTONOTE_LOCKED_TX_ALLOWED_DELTA_BLOCKS >= unlock_time)
       return true;
     else
       return false;
@@ -1969,7 +1963,7 @@ bool Blockchain::handle_block_to_main_chain(const block& bl, const crypto::hash&
   cumulative_difficulty = current_diffic;
   already_generated_coins = already_generated_coins + base_reward;
   if(m_db->height())
-    cumulative_difficulty += m_db->get_block_difficulty(m_db->height());
+    cumulative_difficulty += m_db->get_block_cumulative_difficulty(m_db->height());
 
   update_next_cumulative_size_limit();
 
@@ -2018,7 +2012,6 @@ bool Blockchain::handle_block_to_main_chain(const block& bl, const crypto::hash&
   return true;
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
 bool Blockchain::update_next_cumulative_size_limit()
 {
   std::vector<size_t> sz;
@@ -2032,7 +2025,6 @@ bool Blockchain::update_next_cumulative_size_limit()
   return true;
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
 bool Blockchain::add_new_block(const block& bl_, block_verification_context& bvc)
 {
   //copy block here to let modify block.target
