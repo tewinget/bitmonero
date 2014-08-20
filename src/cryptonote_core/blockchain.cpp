@@ -319,21 +319,48 @@ bool Blockchain::deinit()
   return true;
 }
 //------------------------------------------------------------------
-bool Blockchain::pop_block_from_blockchain()
+// This function tells BlockchainDB to remove the top block from the
+// blockchain and then returns all transactions (except the miner tx, of course)
+// from it to the tx_pool
+block Blockchain::pop_block_from_blockchain()
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
 
-  auto h = m_db->height();
-  CHECK_AND_ASSERT_MES(h > 1, false, "popping the genesis block from the blockchain doesn't make any sense");
-  auto popped_block = m_db->pop_block();
+  block popped_block;
+  std::vector<transaction> popped_txs;
 
-  //TODO: revisit this after the function purge_block_data_from_blockchain has been modified as needed
-  bool r = purge_block_data_from_blockchain(popped_block, popped_block.tx_hashes.size());
-  CHECK_AND_ASSERT_MES(r, false, "Failed to purge_block_data_from_blockchain for block " << get_block_hash(popped_block) << "at height " << h);
+  try
+  {
+    m_db->pop_block(popped_block, popped_txs);
+  }
+  // anything that could cause this to throw is likely catastrophic,
+  // so we re-throw
+  catch (const std::exception& e)
+  {
+    LOG_ERROR("Error popping block from blockchain: " << e.what());
+    throw;
+  }
+  catch (...)
+  {
+    LOG_ERROR("Error popping block from blockchain, throwing!");
+    throw;
+  }
 
-  //TODO: this appears to be a NOP on m_tx_pool's end, verify and remove if possible
-  m_tx_pool.on_blockchain_dec(h, get_tail_id());
-  return true;
+  // return transactions from popped block to the tx_pool
+  for (transaction& tx : popped_txs)
+  {
+    if (!is_coinbase(tx))
+    {
+      cryptonote::tx_verification_context tvc = AUTO_VAL_INIT(tvc);
+      bool r = m_tx_pool.add_tx(tx, tvc, true);
+      if (!r)
+      {
+        LOG_ERROR("Error returning transaction to tx_pool");
+      }
+    }
+  }
+
+  return popped_block;
 }
 //------------------------------------------------------------------
 bool Blockchain::reset_and_set_genesis_block(const block& b)
@@ -396,51 +423,6 @@ bool Blockchain::purge_transaction_keyimages_from_blockchain(const transaction& 
     CHECK_AND_ASSERT_MES(!strict_check || r, false, "failed to process purge_transaction_visitor");
   }
   return true;
-}
-//------------------------------------------------------------------
-//TODO: this functionality will be split between the BlockchainDB and this class.
-//      The BlockchainDB class will handle the actual removal, and the function
-//      in this class that removes a block from the blockchain will handle giving
-//      the transactions back to the transaction pool.
-bool Blockchain::purge_transaction_from_blockchain(const crypto::hash& tx_id)
-{
-  CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  auto tx_index_it = m_transactions.find(tx_id);
-  CHECK_AND_ASSERT_MES(tx_index_it != m_transactions.end(), false, "purge_block_data_from_blockchain: transaction not found in blockchain index!!");
-  transaction& tx = tx_index_it->second.tx;
-
-  purge_transaction_keyimages_from_blockchain(tx, true);
-
-  if(!is_coinbase(tx))
-  {
-    cryptonote::tx_verification_context tvc = AUTO_VAL_INIT(tvc);
-    bool r = m_tx_pool.add_tx(tx, tvc, true);
-    CHECK_AND_ASSERT_MES(r, false, "purge_block_data_from_blockchain: failed to add transaction to transaction pool");
-  }
-
-  bool res = pop_transaction_from_global_index(tx, tx_id);
-  m_transactions.erase(tx_index_it);
-  LOG_PRINT_L1("Removed transaction from blockchain history:" << tx_id << std::endl);
-  return res;
-}
-//------------------------------------------------------------------
-//TODO: This functionality will be done in BlockchainDB, much like
-//      purge_transaction_from_blockchain above.  This function can
-//      be removed once that is in place.
-bool Blockchain::purge_block_data_from_blockchain(const block& bl, size_t processed_tx_count)
-{
-  CRITICAL_REGION_LOCAL(m_blockchain_lock);
-
-  bool res = true;
-  CHECK_AND_ASSERT_MES(processed_tx_count <= bl.tx_hashes.size(), false, "wrong processed_tx_count in purge_block_data_from_blockchain");
-  for(size_t count = 0; count != processed_tx_count; count++)
-  {
-    res = purge_transaction_from_blockchain(bl.tx_hashes[(processed_tx_count -1)- count]) && res;
-  }
-
-  res = purge_transaction_from_blockchain(get_transaction_hash(bl.miner_tx)) && res;
-
-  return res;
 }
 //------------------------------------------------------------------
 crypto::hash Blockchain::get_tail_id(uint64_t& height)
@@ -571,64 +553,84 @@ difficulty_type Blockchain::get_difficulty_for_next_block()
   return next_difficulty(timestamps, cumulative_difficulties);
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
-bool Blockchain::rollback_blockchain_switching(std::list<block>& original_chain, size_t rollback_height)
+// This function removes blocks from the blockchain until it gets to the
+// position where the blockchain switch started and then re-adds the blocks
+// that had been removed.
+bool Blockchain::rollback_blockchain_switching(std::list<block>& original_chain)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  //remove failed subchain
-  for(size_t i = m_db->height()-1; i >=rollback_height; i--)
+
+  // remove blocks from blockchain until we get back to where we were.
+  // Conveniently, that's until our top block's hash == the parent block of
+  // the first block we need to add back.
+  while (m_db->top_block_hash() != original_chain.front().prev_id)
   {
-    bool r = pop_block_from_blockchain();
-    CHECK_AND_ASSERT_MES(r, false, "PANIC!!! failed to remove block while chain switching during the rollback!");
+    pop_block_from_blockchain();
   }
+
   //return back original chain
-  BOOST_FOREACH(auto& bl, original_chain)
+  for (auto& bl : original_chain)
   {
     block_verification_context bvc = boost::value_initialized<block_verification_context>();
     bool r = handle_block_to_main_chain(bl, bvc);
     CHECK_AND_ASSERT_MES(r && bvc.m_added_to_main_chain, false, "PANIC!!! failed to add (again) block while chain switching during the rollback!");
   }
 
-  LOG_PRINT_L0("Rollback success.");
   return true;
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
+// This function attempts to switch to an alternate chain, returning
+// boolean based on success therein.
 bool Blockchain::switch_to_alternative_blockchain(std::list<blocks_ext_by_hash::iterator>& alt_chain, bool discard_disconnected_chain)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
+
+  // if empty alt chain passed (not sure how that could happen), return false
   CHECK_AND_ASSERT_MES(alt_chain.size(), false, "switch_to_alternative_blockchain: empty chain passed");
 
-  size_t split_height = alt_chain.front()->second.height;
-  CHECK_AND_ASSERT_MES(m_db->height() > split_height, false, "switch_to_alternative_blockchain: blockchain size is lower than split height");
-
-  //disconnecting old chain
-  std::list<block> disconnected_chain;
-  for(size_t i = m_db->height()-1; i >=split_height; i--)
+  // verify that main chain has front of alt chain's parent block
+  if (!m_db->block_exists(alt_chain.front()->second.bl.prev_id))
   {
-    block b = m_blocks[i].bl;
-    bool r = pop_block_from_blockchain();
-    CHECK_AND_ASSERT_MES(r, false, "failed to remove block on chain switching");
+    LOG_ERROR("Attempting to move to an alternate chain, but it doesn't appear to connect to the main chain!");
+    return false;
+  }
+
+  // pop blocks from the blockchain until the top block is the parent
+  // of the front block of the alt chain.
+  std::list<block> disconnected_chain;
+  while (m_db->top_block_hash() != alt_chain.front()->second.bl.prev_id)
+  {
+    block b = pop_block_from_blockchain();
     disconnected_chain.push_front(b);
   }
+
+  auto split_height = m_db->height();
 
   //connecting new alternative chain
   for(auto alt_ch_iter = alt_chain.begin(); alt_ch_iter != alt_chain.end(); alt_ch_iter++)
   {
     auto ch_ent = *alt_ch_iter;
     block_verification_context bvc = boost::value_initialized<block_verification_context>();
+
+    // add block to main chain
     bool r = handle_block_to_main_chain(ch_ent->second.bl, bvc);
+
+    // if adding block to main chain failed, rollback to previous state and
+    // return false
     if(!r || !bvc.m_added_to_main_chain)
     {
       LOG_PRINT_L0("Failed to switch to alternative blockchain");
-      rollback_blockchain_switching(disconnected_chain, split_height);
+      rollback_blockchain_switching(disconnected_chain);
+
+      // FIXME: Why do we keep invalid blocks around?  Possibly in case we hear
+      // about them again so we can immediately dismiss them, but needs some
+      // looking into.
       add_block_as_invalid(ch_ent->second, get_block_hash(ch_ent->second.bl));
       LOG_PRINT_L0("The block was inserted as invalid while connecting new alternative chain,  block_id: " << get_block_hash(ch_ent->second.bl));
       m_alternative_chains.erase(ch_ent);
 
       for(auto alt_ch_to_orph_iter = ++alt_ch_iter; alt_ch_to_orph_iter != alt_chain.end(); alt_ch_to_orph_iter++)
       {
-        //block_verification_context bvc = boost::value_initialized<block_verification_context>();
         add_block_as_invalid((*alt_ch_iter)->second, (*alt_ch_iter)->first);
         m_alternative_chains.erase(*alt_ch_to_orph_iter);
       }
@@ -636,23 +638,24 @@ bool Blockchain::switch_to_alternative_blockchain(std::list<blocks_ext_by_hash::
     }
   }
 
+  // if we're to keep the disconnected blocks, add them as alternates
   if(!discard_disconnected_chain)
   {
     //pushing old chain as alternative chain
-    BOOST_FOREACH(auto& old_ch_ent, disconnected_chain)
+    for (auto& old_ch_ent : disconnected_chain)
     {
       block_verification_context bvc = boost::value_initialized<block_verification_context>();
       bool r = handle_alternative_block(old_ch_ent, get_block_hash(old_ch_ent), bvc);
       if(!r)
       {
         LOG_ERROR("Failed to push ex-main chain blocks to alternative chain ");
-        rollback_blockchain_switching(disconnected_chain, split_height);
-        return false;
+        // previously this would fail the blockchain switching, but I don't
+        // think this is bad enough to warrant that.
       }
     }
   }
 
-  //removing all_chain entries from alternative chain
+  //removing alt_chain entries from alternative chain
   BOOST_FOREACH(auto ch_ent, alt_chain)
   {
     m_alternative_chains.erase(ch_ent);
@@ -1506,26 +1509,6 @@ bool Blockchain::get_outs(uint64_t amount, std::list<crypto::public_key>& pkeys)
     pkeys.push_back(boost::get<txout_to_key>(tx_it->second.tx.vout[out_entry.second].target).key);
   }
 
-  return true;
-}
-//------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
-//  NOTE: this function will probably be removed, as its functionality
-//  should be supplanted by BlockchainDB.
-bool Blockchain::pop_transaction_from_global_index(const transaction& tx, const crypto::hash& tx_id)
-{
-  CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  size_t i = tx.vout.size()-1;
-  BOOST_REVERSE_FOREACH(const auto& ot, tx.vout)
-  {
-    auto it = m_outputs.find(ot.amount);
-    CHECK_AND_ASSERT_MES(it != m_outputs.end(), false, "transactions outs global index consistency broken");
-    CHECK_AND_ASSERT_MES(it->second.size(), false, "transactions outs global index: empty index for amount: " << ot.amount);
-    CHECK_AND_ASSERT_MES(it->second.back().first == tx_id , false, "transactions outs global index consistency broken: tx id missmatch");
-    CHECK_AND_ASSERT_MES(it->second.back().second == i, false, "transactions outs global index consistency broken: in transaction index missmatch");
-    it->second.pop_back();
-    --i;
-  }
   return true;
 }
 //------------------------------------------------------------------

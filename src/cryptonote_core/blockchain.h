@@ -179,8 +179,7 @@ namespace cryptonote
     std::atomic<bool> m_is_blockchain_storing;
 
     bool switch_to_alternative_blockchain(std::list<blocks_ext_by_hash::iterator>& alt_chain, bool discard_disconnected_chain);
-    bool pop_block_from_blockchain();
-    bool purge_block_data_from_blockchain(const block& b, size_t processed_tx_count);
+    block pop_block_from_blockchain();
     bool purge_transaction_from_blockchain(const crypto::hash& tx_id);
     bool purge_transaction_keyimages_from_blockchain(const transaction& tx, bool strict_check);
 
@@ -191,7 +190,7 @@ namespace cryptonote
     bool prevalidate_miner_transaction(const block& b, uint64_t height);
     bool validate_miner_transaction(const block& b, size_t cumulative_block_size, uint64_t fee, uint64_t& base_reward, uint64_t already_generated_coins);
     bool validate_transaction(const block& b, uint64_t height, const transaction& tx);
-    bool rollback_blockchain_switching(std::list<block>& original_chain, size_t rollback_height);
+    bool rollback_blockchain_switching(std::list<block>& original_chain);
     bool add_transaction_from_block(const transaction& tx, const crypto::hash& tx_id, const crypto::hash& bl_id, uint64_t bl_height);
     bool push_transaction_to_global_outs_index(const transaction& tx, const crypto::hash& tx_id, std::vector<uint64_t>& global_indexes);
     bool pop_transaction_from_global_index(const transaction& tx, const crypto::hash& tx_id);
