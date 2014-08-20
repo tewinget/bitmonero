@@ -88,7 +88,7 @@
  *   hashes      get_hashes_range(height1, height2)
  *   hash        top_block_hash()
  *   height      height()
- *   tx_list     pop_block()
+ *   void        pop_block(block&, tx_list&)
  *
  * Transactions:
  *   bool        tx_exists(hash)
@@ -394,10 +394,14 @@ protected:
   // chain is 0-indexed, the total size will be height() + 1.
   virtual uint64_t height() = 0;
 
-  // pops the top block off the blockchain and removes its associated transactions
-  // returns the transactions from the block, so that the blockchain can return
-  // any transactions in that block to the tx pool.
-  virtual std::vector<transaction> pop_block() = 0;
+  // pops the top block off the blockchain.
+  // Returns by reference the popped block and its associated transactions
+  //
+  // IMPORTANT:
+  // When a block is popped, the transactions associated with it need to be
+  // removed, as well as outputs and spent key images associated with
+  // those transactions.
+  virtual void pop_block(block& blk, std::vector<transaction>& txs) = 0;
 
 
   // return true if a transaction with hash <h> exists
