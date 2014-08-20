@@ -665,14 +665,20 @@ bool Blockchain::switch_to_alternative_blockchain(std::list<blocks_ext_by_hash::
   return true;
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
+// This function calculates the difficulty target for the block being added to
+// an alternate chain.
 difficulty_type Blockchain::get_next_difficulty_for_alternative_chain(const std::list<blocks_ext_by_hash::iterator>& alt_chain, block_extended_info& bei)
 {
   std::vector<uint64_t> timestamps;
-  std::vector<difficulty_type> commulative_difficulties;
+  std::vector<difficulty_type> cumulative_difficulties;
+
+  // if the alt chain isn't long enough to calculate the difficulty target
+  // based on its blocks alone, need to get more blocks from the main chain
   if(alt_chain.size()< DIFFICULTY_BLOCKS_COUNT)
   {
     CRITICAL_REGION_LOCAL(m_blockchain_lock);
+
+    // Figure out start and stop offsets for main chain blocks
     size_t main_chain_stop_offset = alt_chain.size() ? alt_chain.front()->second.height : bei.height;
     size_t main_chain_count = DIFFICULTY_BLOCKS_COUNT - std::min(static_cast<size_t>(DIFFICULTY_BLOCKS_COUNT), alt_chain.size());
     main_chain_count = std::min(main_chain_count, main_chain_stop_offset);
@@ -680,35 +686,48 @@ difficulty_type Blockchain::get_next_difficulty_for_alternative_chain(const std:
 
     if(!main_chain_start_offset)
       ++main_chain_start_offset; //skip genesis block
+
+    // get difficulties and timestamps from relevant main chain blocks
     for(; main_chain_start_offset < main_chain_stop_offset; ++main_chain_start_offset)
     {
-      timestamps.push_back(m_blocks[main_chain_start_offset].bl.timestamp);
-      commulative_difficulties.push_back(m_blocks[main_chain_start_offset].cumulative_difficulty);
+      timestamps.push_back(m_db->get_block_timestamp(main_chain_start_offset));
+      cumulative_difficulties.push_back(m_db->get_block_cumulative_difficulty(main_chain_start_offset));
     }
 
-    CHECK_AND_ASSERT_MES((alt_chain.size() + timestamps.size()) <= DIFFICULTY_BLOCKS_COUNT, false, "Internal error, alt_chain.size()["<< alt_chain.size()
-                                                                                    << "] + vtimestampsec.size()[" << timestamps.size() << "] NOT <= DIFFICULTY_WINDOW[]" << DIFFICULTY_BLOCKS_COUNT );
-    BOOST_FOREACH(auto it, alt_chain)
+    // make sure we haven't accidentally grabbed too many blocks...maybe don't need this check?
+    CHECK_AND_ASSERT_MES((alt_chain.size() + timestamps.size()) <= DIFFICULTY_BLOCKS_COUNT, false,
+        "Internal error, alt_chain.size()[" << alt_chain.size()
+                                            << "] + vtimestampsec.size()[" << timestamps.size()
+                                            << "] NOT <= DIFFICULTY_WINDOW[]" << DIFFICULTY_BLOCKS_COUNT
+    );
+
+    for (auto it : alt_chain)
     {
       timestamps.push_back(it->second.bl.timestamp);
-      commulative_difficulties.push_back(it->second.cumulative_difficulty);
+      cumulative_difficulties.push_back(it->second.cumulative_difficulty);
     }
-  }else
+  }
+  // if the alt chain is long enough for the difficulty calc, grab difficulties
+  // and timestamps from it alone
+  else
   {
-    timestamps.resize(std::min(alt_chain.size(), static_cast<size_t>(DIFFICULTY_BLOCKS_COUNT)));
-    commulative_difficulties.resize(std::min(alt_chain.size(), static_cast<size_t>(DIFFICULTY_BLOCKS_COUNT)));
+    timestamps.resize(static_cast<size_t>(DIFFICULTY_BLOCKS_COUNT));
+    cumulative_difficulties.resize(static_cast<size_t>(DIFFICULTY_BLOCKS_COUNT));
     size_t count = 0;
     size_t max_i = timestamps.size()-1;
+    // get difficulties and timestamps from most recent blocks in alt chain
     BOOST_REVERSE_FOREACH(auto it, alt_chain)
     {
       timestamps[max_i - count] = it->second.bl.timestamp;
-      commulative_difficulties[max_i - count] = it->second.cumulative_difficulty;
+      cumulative_difficulties[max_i - count] = it->second.cumulative_difficulty;
       count++;
       if(count >= DIFFICULTY_BLOCKS_COUNT)
         break;
     }
   }
-  return next_difficulty(timestamps, commulative_difficulties);
+
+  // calculate the difficulty target for the block and return it
+  return next_difficulty(timestamps, cumulative_difficulties);
 }
 //------------------------------------------------------------------
 // This function does a sanity check on basic things that all miner
@@ -914,7 +933,8 @@ bool Blockchain::create_block_template(block& b, const account_public_address& m
   return false;
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
+// for an alternate chain, get the timestamps from the main chain to complete
+// the needed number of timestamps for the BLOCKCHAIN_TIMESTAMP_CHECK_WINDOW.
 bool Blockchain::complete_timestamps_vector(uint64_t start_top_height, std::vector<uint64_t>& timestamps)
 {
 
@@ -923,19 +943,22 @@ bool Blockchain::complete_timestamps_vector(uint64_t start_top_height, std::vect
 
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
   size_t need_elements = BLOCKCHAIN_TIMESTAMP_CHECK_WINDOW - timestamps.size();
-  CHECK_AND_ASSERT_MES(start_top_height < m_db->height(), false, "internal error: passed start_height = " << start_top_height << " not less then m_db->height()=" << m_db->height());
-  size_t stop_offset = start_top_height > need_elements ? start_top_height - need_elements:0;
-  do
+  CHECK_AND_ASSERT_MES(start_top_height <= m_db->height(), false, "internal error: passed start_height > " << " m_db->height() -- " << start_top_height << " > " << m_db->height());
+  size_t stop_offset = start_top_height > need_elements ? start_top_height - need_elements : 0;
+  while (start_top_height != stop_offset);
   {
-    timestamps.push_back(m_blocks[start_top_height].bl.timestamp);
-    if(start_top_height == 0)
-      break;
+    timestamps.push_back(m_db->get_block_timestamp(start_top_height));
     --start_top_height;
-  }while(start_top_height != stop_offset);
+  }
   return true;
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
+// If a block is to be added and its parent block is not the current
+// main chain top block, then we need to see if we know about its parent block.
+// If its parent block is part of a known forked chain, then we need to see
+// if that chain is long enough to become the main chain and re-org accordingly
+// if so.  If not, we need to hang on to the block in case it becomes part of
+// a long forked chain eventually.
 bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id, block_verification_context& bvc)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -947,6 +970,9 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
     bvc.m_verification_failed = true;
     return false;
   }
+  // TODO: this basically says if the blockchain is smaller than the first
+  // checkpoint then alternate blocks are allowed...this seems backwards, but
+  // I'm not sure.  Needs further investigating.
   if (!m_checkpoints.is_alternative_block_allowed(get_current_blockchain_height(), block_height))
   {
     LOG_PRINT_RED_L0("Block with id: " << id
@@ -958,9 +984,9 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
 
   //block is not related with head of main chain
   //first of all - look in alternative chains container
-  auto it_main_prev = m_blocks_index.find(b.prev_id);
   auto it_prev = m_alternative_chains.find(b.prev_id);
-  if(it_prev != m_alternative_chains.end() || it_main_prev != m_blocks_index.end())
+  bool parent_in_main = m_db->block_exists(b.prev_id);
+  if(it_prev != m_alternative_chains.end() || parent_in_main)
   {
     //we have new block in alternative chain
 
@@ -975,32 +1001,48 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
       alt_it = m_alternative_chains.find(alt_it->second.bl.prev_id);
     }
 
+    // if block to be added connects to known blocks that aren't part of the
+    // main chain -- that is, if we're adding on to an alternate chain
     if(alt_chain.size())
     {
       //make sure that it has right connection to main chain
       CHECK_AND_ASSERT_MES(m_db->height() > alt_chain.front()->second.height, false, "main blockchain wrong height");
-      crypto::hash h = null_hash;
+
+      // make sure that the blockchain contains the block that should connect
+      // this alternate chain with it.
+      if (!m_db->block_exists(alt_chain.front()->second.bl.prev_id))
+      {
+        LOG_PRINT_L1("alternate chain does not appear to connect to main chain...");
+        return false;
+      }
       get_block_hash(m_blocks[alt_chain.front()->second.height - 1].bl, h);
       CHECK_AND_ASSERT_MES(h == alt_chain.front()->second.bl.prev_id, false, "alternative chain have wrong connection to main chain");
-      complete_timestamps_vector(alt_chain.front()->second.height - 1, timestamps);
-    }else
-    {
-      CHECK_AND_ASSERT_MES(it_main_prev != m_blocks_index.end(), false, "internal error: broken imperative condition it_main_prev != m_blocks_index.end()");
-      complete_timestamps_vector(it_main_prev->second, timestamps);
+      complete_timestamps_vector(m_db->get_block_height(alt_chain.front()->second.bl.prev_id), timestamps);
     }
-    //check timestamp correct
+    // if block not associated with known alternate chain
+    else
+    {
+      // if block parent is not part of main chain or an alternate chain,
+      // we ignore it
+      CHECK_AND_ASSERT_MES(parent_in_main, false, "internal error: broken imperative condition it_main_prev != m_blocks_index.end()");
+
+      complete_timestamps_vector(m_db->get_block_height(b.prev_id), timestamps);
+    }
+
+    // verify that the block's timestamp is within the acceptable range
+    // (not earlier than the median of the last X blocks)
     if(!check_block_timestamp(timestamps, b))
     {
       LOG_PRINT_RED_L0("Block with id: " << id
         << std::endl << " for alternative chain, have invalid timestamp: " << b.timestamp);
-      //add_block_as_invalid(b, id);//do not add blocks to invalid storage before proof of work check was passed
       bvc.m_verification_failed = true;
       return false;
     }
 
+    // FIXME: consider moving away from block_extended_info at some point
     block_extended_info bei = boost::value_initialized<block_extended_info>();
     bei.bl = b;
-    bei.height = alt_chain.size() ? it_prev->second.height + 1 : it_main_prev->second + 1;
+    bei.height = alt_chain.size() ? it_prev->second.height + 1 : m_db->get_block_height(b.prev_id) + 1;
 
     bool is_a_checkpoint;
     if(!m_checkpoints.check_block(bei.height, id, is_a_checkpoint))
@@ -1010,7 +1052,7 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
       return false;
     }
 
-    // Always check PoW for alternative blocks
+    // Check the block's hash against the difficulty target for its alt chain
     m_is_in_checkpoint_zone = false;
     difficulty_type current_diff = get_next_difficulty_for_alternative_chain(alt_chain, bei);
     CHECK_AND_ASSERT_MES(current_diff, false, "!!!!!!! DIFFICULTY OVERHEAD !!!!!!!");
@@ -1034,36 +1076,48 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
 
     }
 
-    bei.cumulative_difficulty = alt_chain.size() ? it_prev->second.cumulative_difficulty: m_blocks[it_main_prev->second].cumulative_difficulty;
+    // FIXME:
+    // this brings up an interesting point: consider allowing to get block
+    // difficulty both by height OR by hash, not just height.
+    bei.cumulative_difficulty = alt_chain.size() ? it_prev->second.cumulative_difficulty : m_db->get_block__difficulty(m_db->get_block_height(b.prev_id));
     bei.cumulative_difficulty += current_diff;
 
-#ifdef _DEBUG
-    auto i_dres = m_alternative_chains.find(id);
-    CHECK_AND_ASSERT_MES(i_dres == m_alternative_chains.end(), false, "insertion of new alternative block returned as it already exist");
-#endif
+    // add block to alternate blocks storage,
+    // as well as the current "alt chain" container
     auto i_res = m_alternative_chains.insert(blocks_ext_by_hash::value_type(id, bei));
     CHECK_AND_ASSERT_MES(i_res.second, false, "insertion of new alternative block returned as it already exist");
     alt_chain.push_back(i_res.first);
 
+    // FIXME: is it even possible for a checkpoint to show up not on the main chain?
     if(is_a_checkpoint)
     {
       //do reorganize!
       LOG_PRINT_GREEN("###### REORGANIZE on height: " << alt_chain.front()->second.height << " of " << m_db->height() - 1 <<
         ", checkpoint is found in alternative chain on height " << bei.height, LOG_LEVEL_0);
+
       bool r = switch_to_alternative_blockchain(alt_chain, true);
-      if(r) bvc.m_added_to_main_chain = true;
-      else bvc.m_verification_failed = true;
+
+      bvc.m_added_to_main_chain = r;
+      bvc.m_verification_failed = !r;
+
       return r;
-    }else if(m_blocks.back().cumulative_difficulty < bei.cumulative_difficulty) //check if difficulty bigger then in main chain
+    }
+    else if(m_blocks.back().cumulative_difficulty < bei.cumulative_difficulty) //check if difficulty bigger then in main chain
     {
       //do reorganize!
-      LOG_PRINT_GREEN("###### REORGANIZE on height: " << alt_chain.front()->second.height << " of " << m_db->height() - 1 << " with cum_difficulty " << m_blocks.back().cumulative_difficulty
-        << std::endl << " alternative blockchain size: " << alt_chain.size() << " with cum_difficulty " << bei.cumulative_difficulty, LOG_LEVEL_0);
+      LOG_PRINT_GREEN("###### REORGANIZE on height: "
+          << alt_chain.front()->second.height << " of " << m_db->height()
+          << " with cum_difficulty " << m_db->get_block_cumulative_difficulty(m_db->height())
+          << std::endl << " alternative blockchain size: " << alt_chain.size()
+          << " with cum_difficulty " << bei.cumulative_difficulty, LOG_LEVEL_0
+      );
+
       bool r = switch_to_alternative_blockchain(alt_chain, false);
       if(r) bvc.m_added_to_main_chain = true;
       else bvc.m_verification_failed = true;
       return r;
-    }else
+    }
+    else
     {
       LOG_PRINT_BLUE("----- BLOCK ADDED AS ALTERNATIVE ON HEIGHT " << bei.height
         << std::endl << "id:\t" << id
@@ -1071,7 +1125,8 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
         << std::endl << "difficulty:\t" << current_diff, LOG_LEVEL_0);
       return true;
     }
-  }else
+  }
+  else
   {
     //block orphaned
     bvc.m_marked_as_orphaned = true;
@@ -1293,7 +1348,7 @@ bool Blockchain::find_blockchain_supplement(const std::list<crypto::hash>& qbloc
   return true;
 }
 //------------------------------------------------------------------
-uint64_t Blockchain::block_difficulty(size_t i)
+uint64_t Blockchain::block_difficulty(uint64_t i)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
   try
