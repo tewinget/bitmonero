@@ -50,8 +50,6 @@
 
 /* TODO:
  *  Clean up code:
- *    Clarify where double spend check should be done, and only do it there.
- *    Combine check_tx_inputs functions into one coherent function.
  *    Possibly change how outputs are referred to/indexed in blockchain and wallets
  *
  */
@@ -1548,15 +1546,13 @@ bool Blockchain::add_block_as_invalid(const block_extended_info& bei, const cryp
 bool Blockchain::have_block(const crypto::hash& id)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
+
   if(m_db->block_exists(id))
     return true;
+
   if(m_alternative_chains.count(id))
     return true;
-  /*if(m_orphaned_blocks.get<by_id>().count(id))
-    return true;*/
 
-  /*if(m_orphaned_by_tx.count(id))
-    return true;*/
   if(m_invalid_blocks.count(id))
     return true;
 
