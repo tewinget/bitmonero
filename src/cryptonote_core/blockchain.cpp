@@ -833,7 +833,17 @@ uint64_t Blockchain::get_current_cumulative_blocksize_limit()
   return m_current_block_cumul_sz_limit;
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
+//TODO: This function only needed minor modification to work with BlockchainDB,
+//      and *works*.  As such, to reduce the number of things that might break
+//      in moving to BlockchainDB, this function will remain otherwise
+//      unchanged for the time being.
+//
+// This function makes a new block for a miner to mine the hash for
+//
+// FIXME: this codebase references #if defined(DEBUG_CREATE_BLOCK_TEMPLATE)
+// in a lot of places.  That flag is not referenced in any of the code
+// nor any of the makefiles, howeve.  Need to look into whether or not it's
+// necessary at all.
 bool Blockchain::create_block_template(block& b, const account_public_address& miner_address, difficulty_type& diffic, uint64_t& height, const blobdata& ex_nonce)
 {
   size_t median_size;
@@ -844,12 +854,14 @@ bool Blockchain::create_block_template(block& b, const account_public_address& m
   b.minor_version = CURRENT_BLOCK_MINOR_VERSION;
   b.prev_id = get_tail_id();
   b.timestamp = time(NULL);
-  height = m_db->height();
+
+  auto old_height = m_db->height();
+  height = old_height + 1;
   diffic = get_difficulty_for_next_block();
   CHECK_AND_ASSERT_MES(diffic, false, "difficulty owverhead.");
 
   median_size = m_current_block_cumul_sz_limit / 2;
-  already_generated_coins = m_blocks.back().already_generated_coins;
+  already_generated_coins = m_db->get_block_already_generated_coins(old_height);
 
   CRITICAL_REGION_END();
 
@@ -1325,20 +1337,30 @@ bool Blockchain::get_random_outs_for_amounts(const COMMAND_RPC_GET_RANDOM_OUTPUT
 }
 //------------------------------------------------------------------
 //TODO: rewrite using BlockchainDB
+// This function appears to take a list of block hashes from another node
+// on the network and try to find where the split point is between us and them.
+// The goal, then would be to see "how far are we behind that node?" and thus
+// "which blocks do we need to ask for to sync?"
+//      TODO: verify this assertion
 bool Blockchain::find_blockchain_supplement(const std::list<crypto::hash>& qblock_ids, uint64_t& starter_offset)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
 
+  // make sure the request includes at least the genesis block, otherwise
+  // how can we expect to sync from the client that the block list came from?
   if(!qblock_ids.size() /*|| !req.m_total_height*/)
   {
     LOG_ERROR("Client sent wrong NOTIFY_REQUEST_CHAIN: m_block_ids.size()=" << qblock_ids.size() << /*", m_height=" << req.m_total_height <<*/ ", dropping connection");
     return false;
   }
-  //check genesis match
-  if(qblock_ids.back() != get_block_hash(m_blocks[0].bl))
+
+  // make sure that the first block in the request's block list matches
+  // the genesis block
+  auto gen_hash = m_db->get_block_hash_from_height(0);
+  if(qblock_ids.back() != gen_hash)
   {
     LOG_ERROR("Client sent wrong NOTIFY_REQUEST_CHAIN: genesis block missmatch: " << std::endl << "id: "
-      << qblock_ids.back() << ", " << std::endl << "expected: " << get_block_hash(m_blocks[0].bl)
+      << qblock_ids.back() << ", " << std::endl << "expected: " << gen_hash
       << "," << std::endl << " dropping connection");
     return false;
   }
