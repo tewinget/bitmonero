@@ -92,7 +92,7 @@
  *
  * Transactions:
  *   bool        tx_exists(hash)
- *   bool        tx_unlocked(hash)
+ *   uint64_t    get_tx_unlock_time(hash)
  *   tx          get_tx(hash)
  *   uint64_t    get_tx_count()
  *   tx_list     get_tx_list(hash_list)
@@ -100,7 +100,8 @@
  *
  * Outputs:
  *   index       get_random_output(amount)
- *   txout_key   get_output_key(index)
+ *   uint64_t    get_num_outputs(amount)
+ *   pub_key     get_output_key(amount, index)
  *   tx_out      get_output(tx_hash, index)
  *   hash,index  get_output_tx_and_index(amount, index)
  *
@@ -408,8 +409,8 @@ protected:
   // return true if a transaction with hash <h> exists
   virtual bool tx_exists(const crypto::hash& h) = 0;
 
-  // return true if transaciton with hash <h> is unlocked
-  virtual bool tx_unlocked(const crypto::hash& h) = 0;
+  // return unlock time of tx with hash <h>
+  virtual uint64_t get_tx_unlock_time(const crypto::hash& h) = 0;
 
   // return tx with hash <h>
   // throw if no such tx exists
@@ -427,10 +428,13 @@ protected:
   virtual uint64_t get_tx_block_height(const crypto::hash& h) = 0;
 
   // return global output index of a random output of amount <amount>
-  virtual uint64_t get_random_out(const uint64_t& amount) = 0;
+  virtual uint64_t get_random_output(const uint64_t& amount) = 0;
 
-  // return public key for output with global output index <index>
-  virtual txout_to_key get_output_key(const uint64_t& index) = 0;
+  // returns the total number of outputs of amount <amount>
+  virtual uint64_t get_num_outputs(const uint64_t& amount) = 0;
+
+  // return public key for output with global output amount <amount> and index <index>
+  virtual crypto::public_key get_output_key(const uint64_t& amount, const uint64_t& index) = 0;
 
   // returns the output indexed by <index> in the transaction with hash <h>
   virtual tx_out get_output(const crypto::hash& h, const uint64_t& index) = 0;

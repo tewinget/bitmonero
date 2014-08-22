@@ -1243,85 +1243,82 @@ size_t Blockchain::get_alternative_blocks_count()
   return m_alternative_chains.size();
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
-bool Blockchain::add_out_to_get_random_outs(std::vector<std::pair<crypto::hash, size_t> >& amount_outs, COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount& result_outs, uint64_t amount, size_t i)
+// This function adds the output specified by <amount, i> to the result_outs container
+// unlocked and other such checks should be done by here.
+void Blockchain::add_out_to_get_random_outs(COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount& result_outs, uint64_t amount, size_t i)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  transactions_container::iterator tx_it = m_transactions.find(amount_outs[i].first);
-  CHECK_AND_ASSERT_MES(tx_it != m_transactions.end(), false, "internal error: transaction with id " << amount_outs[i].first << std::endl <<
-    ", used in mounts global index for amount=" << amount << ": i=" << i << "not found in transactions index");
-  CHECK_AND_ASSERT_MES(tx_it->second.tx.vout.size() > amount_outs[i].second, false, "internal error: in global outs index, transaction out index="
-    << amount_outs[i].second << " more than transaction outputs = " << tx_it->second.tx.vout.size() << ", for tx id = " << amount_outs[i].first);
-  transaction& tx = tx_it->second.tx;
-  CHECK_AND_ASSERT_MES(tx.vout[amount_outs[i].second].target.type() == typeid(txout_to_key), false, "unknown tx out type");
-
-  //check if transaction is unlocked
-  if(!is_tx_spendtime_unlocked(tx.unlock_time))
-    return false;
 
   COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::out_entry& oen = *result_outs.outs.insert(result_outs.outs.end(), COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::out_entry());
   oen.global_amount_index = i;
-  oen.out_key = boost::get<txout_to_key>(tx.vout[amount_outs[i].second].target).key;
-  return true;
+  oen.out_key = m_db->get_output_key(amount, i);
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
-size_t Blockchain::find_end_of_allowed_index(const std::vector<std::pair<crypto::hash, size_t> >& amount_outs)
-{
-  CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  if(!amount_outs.size())
-    return 0;
-  size_t i = amount_outs.size();
-  do
-  {
-    --i;
-    transactions_container::iterator it = m_transactions.find(amount_outs[i].first);
-    CHECK_AND_ASSERT_MES(it != m_transactions.end(), 0, "internal error: failed to find transaction from outputs index with tx_id=" << amount_outs[i].first);
-    if(it->second.m_keeper_block_height + CRYPTONOTE_MINED_MONEY_UNLOCK_WINDOW <= get_current_blockchain_height() )
-      return i+1;
-  } while (i != 0);
-  return 0;
-}
-//------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
+// This function takes an RPC request for mixins and creates an RPC response
+// with the requested mixins.
+// TODO: figure out why this returns boolean / if we should be returning false
+// in some cases
 bool Blockchain::get_random_outs_for_amounts(const COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::request& req, COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::response& res)
 {
   srand(static_cast<unsigned int>(time(NULL)));
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  BOOST_FOREACH(uint64_t amount, req.amounts)
+
+  // for each amount that we need to get mixins for, get <n> random outputs
+  // from BlockchainDB where <n> is req.outs_count (number of mixins).
+  for (uint64_t amount : req.amounts)
   {
+    // create outs_for_amount struct and populate amount field
     COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount& result_outs = *res.outs.insert(res.outs.end(), COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount());
     result_outs.amount = amount;
-    auto it = m_outputs.find(amount);
-    if(it == m_outputs.end())
+
+    std::vector<uint64_t> seen_indices;
+
+    // if there aren't enough outputs to mix with (or just enough),
+    // use all of them.  Eventually this should become impossible.
+    if (m_db->get_num_outputs(amount) <= req.outs_count)
     {
-      LOG_ERROR("COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS: not outs for amount " << amount << ", wallet should use some real outs when it lookup for some mix, so, at least one out for this amount should exist");
-      continue;//actually this is strange situation, wallet should use some real outs when it lookup for some mix, so, at least one out for this amount should exist
-    }
-    std::vector<std::pair<crypto::hash, size_t> >& amount_outs  = it->second;
-    //it is not good idea to use top fresh outs, because it increases possibility of transaction canceling on split
-    //lets find upper bound of not fresh outs
-    size_t up_index_limit = find_end_of_allowed_index(amount_outs);
-    CHECK_AND_ASSERT_MES(up_index_limit <= amount_outs.size(), false, "internal error: find_end_of_allowed_index returned wrong index=" << up_index_limit << ", with amount_outs.size = " << amount_outs.size());
-    if(amount_outs.size() > req.outs_count)
-    {
-      std::set<size_t> used;
-      size_t try_count = 0;
-      for(uint64_t j = 0; j != req.outs_count && try_count < up_index_limit;)
+      for (uint64_t i = 0; i < m_db->get_num_outputs(amount); i++)
       {
-        size_t i = rand()%up_index_limit;
-        if(used.count(i))
-          continue;
-        bool added = add_out_to_get_random_outs(amount_outs, result_outs, amount, i);
-        used.insert(i);
-        if(added)
-          ++j;
-        ++try_count;
+        // get tx_hash, tx_out_index from DB
+        tx_out_index toi = m_db->get_output_tx_and_index(amount, i);
+
+        // if tx is unlocked, add output to result_outs
+        if (is_tx_spendtime_unlocked(m_db->get_tx_unlock_time(toi.first)))
+        {
+          add_out_to_get_random_outs(result_outs, amount, i);
+        }
+
       }
-    }else
+    }
+    else
     {
-      for(size_t i = 0; i != up_index_limit; i++)
-        add_out_to_get_random_outs(amount_outs, result_outs, amount, i);
+      // while we still need more mixins
+      auto num_outs = m_db->get_num_outputs(amount);
+      while (result_outs.outs.size() < req.outs_count)
+      {
+        // if we've gone through every possible output, we've gotten all we can
+        if (seen_indices.count() == num_outs)
+        {
+          break;
+        }
+
+        // get a random output index from the DB.  If we've already seen it,
+        // return to the top of the loop and try again, otherwise add it to the
+        // list of output indices we've seen.
+        uint64_t i = m_db->get_random_output(amount);
+        if (seen_indices.count(i))
+        {
+          continue;
+        }
+        seen_indices.push_back(i);
+
+        // if the output's transaction is unlocked, add the output's index to
+        // our list.
+        if (is_tx_spendtime_unlocked(m_db->get_tx_unlock_time(toi.first)))
+        {
+          add_out_to_get_random_outs(result_outs, amount, i);
+        }
+      }
     }
   }
   return true;
