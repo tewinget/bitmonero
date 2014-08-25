@@ -79,7 +79,6 @@
  *   block       get_block_from_height(height)
  *   size_t      get_block_size(height)
  *   difficulty  get_block_cumulative_difficulty(height)
- *   difficulty  get_block_difficulty(height)
  *   uint64_t    get_block_already_generated_coins(height)
  *   uint64_t    get_block_timestamp(height) 
  *   uint64_t    get_top_block_timestamp()
@@ -104,6 +103,7 @@
  *   pub_key     get_output_key(amount, index)
  *   tx_out      get_output(tx_hash, index)
  *   hash,index  get_output_tx_and_index(amount, index)
+ *   vec<uint64> get_tx_output_indices(tx_hash)
  *
  *
  * Spent Output Key Images:
@@ -312,7 +312,7 @@ class OUTPUT_DNE : public std::exception
 
 class BlockchainDB
 {
-protected:
+public:
   // open the db at location <filename>, or create it if there isn't one.
   virtual void open(const std::string& filename) = 0;
 
@@ -374,6 +374,9 @@ protected:
 
   // return cumulative difficulty up to and including block at height <height>
   virtual difficulty_type get_block_cumulative_difficulty(const uint64_t& height) = 0;
+
+  // return difficulty of block at height <height>
+  virtual difficulty_type get_block_difficulty(const uint64_t& height) = 0;
 
   // return number of coins generated up to and including block at height <height>
   virtual uint64_t get_block_already_generated_coins(const uint64_t& height) = 0;
@@ -443,6 +446,9 @@ protected:
   // return type is pair of tx hash and index
   virtual tx_out_index get_output_tx_and_index(const uint64_t& amount, const uint64_t& index) = 0;
 
+  // return a vector of indices corresponding to the global output index for
+  // each output in the transaction with hash <h>
+  virtual std::vector<uint64_t> get_tx_output_indices(const crypto::hash& h) = 0;
 
   // returns true if key image <img> is present in spent key images storage
   virtual bool has_key_image(const crypto::key_image& img) = 0;

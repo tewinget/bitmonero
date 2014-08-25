@@ -115,7 +115,6 @@ namespace cryptonote
     bool create_block_template(block& b, const account_public_address& miner_address, difficulty_type& di, uint64_t& height, const blobdata& ex_nonce);
     bool have_block(const crypto::hash& id);
     size_t get_total_transactions();
-    bool get_outs(uint64_t amount, std::list<crypto::public_key>& pkeys);
     bool get_short_chain_history(std::list<crypto::hash>& ids);
     bool find_blockchain_supplement(const std::list<crypto::hash>& qblock_ids, NOTIFY_RESPONSE_CHAIN_ENTRY::request& resp);
     bool find_blockchain_supplement(const std::list<crypto::hash>& qblock_ids, uint64_t& starter_offset);
@@ -200,6 +199,7 @@ namespace cryptonote
     bool add_block_as_invalid(const block& bl, const crypto::hash& h);
     bool add_block_as_invalid(const block_extended_info& bei, const crypto::hash& h);
     bool check_block_timestamp(const block& b);
+    bool check_block_timestamp(const std::vector<uint64_t>& timestamps, const block& b);
     uint64_t get_adjusted_time();
     bool complete_timestamps_vector(uint64_t start_height, std::vector<uint64_t>& timestamps);
     bool update_next_cumulative_size_limit();

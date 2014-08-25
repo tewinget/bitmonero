@@ -100,10 +100,13 @@ namespace cryptonote
   bool core::get_blocks(uint64_t start_offset, size_t count, std::list<block>& blocks)
   {
     return m_Blockchain.get_blocks(start_offset, count, blocks);
-  }  //-----------------------------------------------------------------------------------------------
+  }
+  //-----------------------------------------------------------------------------------------------
+  // TODO: this shouldn't return bool
   bool core::get_transactions(const std::vector<crypto::hash>& txs_ids, std::list<transaction>& txs, std::list<crypto::hash>& missed_txs)
   {
-    return m_Blockchain.get_transactions(txs_ids, txs, missed_txs);
+    m_Blockchain.get_transactions(txs_ids, txs, missed_txs);
+    return true;
   }
   //-----------------------------------------------------------------------------------------------
   bool core::get_alternative_blocks(std::list<block>& blocks)

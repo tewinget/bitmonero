@@ -166,7 +166,7 @@ bool Blockchain::scan_outputkeys_for_indexes(const txin_to_key& tx_in_to_key, vi
       auto output_index = m_db->get_output_tx_and_index(tx_in_to_key.amount, i);
 
       // get tx that output is from
-      auto tx = m_db->get_transaction(output_index.first);
+      auto tx = m_db->get_tx(output_index.first);
 
       // make sure output index is within range for the given transaction
       if (output_index.second >= tx.vout.size())
@@ -196,12 +196,12 @@ bool Blockchain::scan_outputkeys_for_indexes(const txin_to_key& tx_in_to_key, vi
     }
     catch (const OUTPUT_DNE& e)
     {
-      LOG_PRINT_L0("Output with amount " << tx_in_to_key.amount << " and index " << i << " does not exist!");
+      LOG_PRINT_L0("Output does not exist: " << e.what());
       return false;
     }
     catch (const TX_DNE& e)
     {
-      LOG_PRINT_L0("Transaction with hash " << output_index.first << " does not exist!");
+      LOG_PRINT_L0("Transaction does not exist: " << e.what());
       return false;
     }
 
@@ -507,7 +507,7 @@ bool Blockchain::get_block_by_hash(const crypto::hash &h, block &blk)
   // try to find block in main chain
   try
   {
-    blk = m_db->get_block(hash);
+    blk = m_db->get_block(h);
     return true;
   }
   // try to find block in alternative chain
@@ -1037,7 +1037,7 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
     // main chain -- that is, if we're adding on to an alternate chain
     if(alt_chain.size())
     {
-      //make sure that it has right connection to main chain
+      // make sure alt chain doesn't somehow start past the end of the main chain
       CHECK_AND_ASSERT_MES(m_db->height() > alt_chain.front()->second.height, false, "main blockchain wrong height");
 
       // make sure that the blockchain contains the block that should connect
@@ -1047,7 +1047,9 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
         LOG_PRINT_L1("alternate chain does not appear to connect to main chain...");
         return false;
       }
-      get_block_hash(m_blocks[alt_chain.front()->second.height - 1].bl, h);
+
+      // make sure block connects correctly to the main chain
+      auto h = m_db->get_block_hash_from_height(alt_chain.front()->second.height - 1);
       CHECK_AND_ASSERT_MES(h == alt_chain.front()->second.bl.prev_id, false, "alternative chain have wrong connection to main chain");
       complete_timestamps_vector(m_db->get_block_height(alt_chain.front()->second.bl.prev_id), timestamps);
     }
@@ -1111,7 +1113,7 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
     // FIXME:
     // this brings up an interesting point: consider allowing to get block
     // difficulty both by height OR by hash, not just height.
-    bei.cumulative_difficulty = alt_chain.size() ? it_prev->second.cumulative_difficulty : m_db->get_block__difficulty(m_db->get_block_height(b.prev_id));
+    bei.cumulative_difficulty = alt_chain.size() ? it_prev->second.cumulative_difficulty : m_db->get_block_cumulative_difficulty(m_db->get_block_height(b.prev_id));
     bei.cumulative_difficulty += current_diff;
 
     // add block to alternate blocks storage,
@@ -1283,7 +1285,7 @@ bool Blockchain::get_random_outs_for_amounts(const COMMAND_RPC_GET_RANDOM_OUTPUT
     COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount& result_outs = *res.outs.insert(res.outs.end(), COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::outs_for_amount());
     result_outs.amount = amount;
 
-    std::vector<uint64_t> seen_indices;
+    std::unordered_set<uint64_t> seen_indices;
 
     // if there aren't enough outputs to mix with (or just enough),
     // use all of them.  Eventually this should become impossible.
@@ -1309,7 +1311,7 @@ bool Blockchain::get_random_outs_for_amounts(const COMMAND_RPC_GET_RANDOM_OUTPUT
       while (result_outs.outs.size() < req.outs_count)
       {
         // if we've gone through every possible output, we've gotten all we can
-        if (seen_indices.count() == num_outs)
+        if (seen_indices.size() == num_outs)
         {
           break;
         }
@@ -1322,7 +1324,10 @@ bool Blockchain::get_random_outs_for_amounts(const COMMAND_RPC_GET_RANDOM_OUTPUT
         {
           continue;
         }
-        seen_indices.push_back(i);
+        seen_indices.emplace(i);
+
+        // get tx_hash, tx_out_index from DB
+        tx_out_index toi = m_db->get_output_tx_and_index(amount, i);
 
         // if the output's transaction is unlocked, add the output's index to
         // our list.
@@ -1336,12 +1341,9 @@ bool Blockchain::get_random_outs_for_amounts(const COMMAND_RPC_GET_RANDOM_OUTPUT
   return true;
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
-// This function appears to take a list of block hashes from another node
-// on the network and try to find where the split point is between us and them.
-// The goal, then would be to see "how far are we behind that node?" and thus
-// "which blocks do we need to ask for to sync?"
-//      TODO: verify this assertion
+// This function takes a list of block hashes from another node
+// on the network to find where the split point is between us and them.
+// This is used to see what to send another node that needs to sync.
 bool Blockchain::find_blockchain_supplement(const std::list<crypto::hash>& qblock_ids, uint64_t& starter_offset)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
@@ -1354,7 +1356,7 @@ bool Blockchain::find_blockchain_supplement(const std::list<crypto::hash>& qbloc
     return false;
   }
 
-  // make sure that the first block in the request's block list matches
+  // make sure that the last block in the request's block list matches
   // the genesis block
   auto gen_hash = m_db->get_block_hash_from_height(0);
   if(qblock_ids.back() != gen_hash)
@@ -1365,32 +1367,45 @@ bool Blockchain::find_blockchain_supplement(const std::list<crypto::hash>& qbloc
     return false;
   }
 
-  /* Figure out what blocks we should request to get state_normal */
-  size_t i = 0;
+  // Find the first block the foreign chain has that we also have.
+  // Assume qblock_ids is in reverse-chronological order.
   auto bl_it = qblock_ids.begin();
-  auto block_index_it = m_blocks_index.find(*bl_it);
-  for(; bl_it != qblock_ids.end(); bl_it++, i++)
+  uint64_t split_height = 0;
+  for(; bl_it != qblock_ids.end(); bl_it++)
   {
-    block_index_it = m_blocks_index.find(*bl_it);
-    if(block_index_it != m_blocks_index.end())
+    try
+    {
+      split_height = m_db->get_block_height(*bl_it);
       break;
+    }
+    catch (const BLOCK_DNE& e)
+    {
+      continue;
+    }
+    catch (const std::exception& e)
+    {
+      LOG_PRINT_L1("Non-critical error trying to find block by hash in BlockchainDB, hash: " << *bl_it);
+      return false;
+    }
   }
 
+  // this should be impossible, as we checked that we share the genesis block,
+  // but just in case...
   if(bl_it == qblock_ids.end())
   {
     LOG_ERROR("Internal error handling connection, can't find split point");
     return false;
   }
 
-  if(block_index_it == m_blocks_index.end())
+  // if split_height remains 0, we didn't have any but the genesis block in common
+  if(split_height == 0)
   {
-    //this should NEVER happen, but, dose of paranoia in such cases is not too bad
-    LOG_ERROR("Internal error handling connection, can't find split point");
+    LOG_ERROR("Ours and foreign blockchain have only genesis block in common... o.O");
     return false;
   }
 
   //we start to put block ids INCLUDING last known id, just to make other side be sure
-  starter_offset = block_index_it->second;
+  starter_offset = split_height;
   return true;
 }
 //------------------------------------------------------------------
@@ -1405,6 +1420,7 @@ uint64_t Blockchain::block_difficulty(uint64_t i)
   {
     LOG_PRINT_L0("Attempted to get block difficulty for height above blockchain height");
   }
+  return 0;
 }
 //------------------------------------------------------------------
 template<class t_ids_container, class t_blocks_container, class t_missed_container>
@@ -1459,7 +1475,7 @@ void Blockchain::print_blockchain(uint64_t start_index, uint64_t end_index)
     ss << "height " << i
        << ", timestamp " << m_db->get_block_timestamp(i)
        << ", cumul_dif " << m_db->get_block_cumulative_difficulty(i)
-       << ", size " << m_db->get_block_size(i);
+       << ", size " << m_db->get_block_size(i)
        << "\nid\t\t" <<  m_db->get_block_hash_from_height(i)
        << "\ndifficulty\t\t" << m_db->get_block_difficulty(i)
        << ", nonce " << m_db->get_block_from_height(i).nonce
@@ -1484,61 +1500,66 @@ void Blockchain::print_blockchain_index()
               );
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
+//TODO: remove this function and references to it
 void Blockchain::print_blockchain_outs(const std::string& file)
 {
-  std::stringstream ss;
-  CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  BOOST_FOREACH(const outputs_container::value_type& v, m_outputs)
-  {
-    const std::vector<std::pair<crypto::hash, size_t> >& vals = v.second;
-    if(vals.size())
-    {
-      ss << "amount: " <<  v.first << std::endl;
-      for(size_t i = 0; i != vals.size(); i++)
-        ss << "\t" << vals[i].first << ": " << vals[i].second << std::endl;
-    }
-  }
-  if(epee::file_io_utils::save_string_to_file(file, ss.str()))
-  {
-    LOG_PRINT_L0("Current outputs index writen to file: " << file);
-  }else
-  {
-    LOG_PRINT_L0("Failed to write current outputs index to file: " << file);
-  }
+  return;
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
+// Find the split point between us and foreign blockchain and return
+// (by reference) the most recent common block hash along with up to
+// BLOCKS_IDS_SYNCHRONIZING_DEFAULT_COUNT additional (more recent) hashes.
 bool Blockchain::find_blockchain_supplement(const std::list<crypto::hash>& qblock_ids, NOTIFY_RESPONSE_CHAIN_ENTRY::request& resp)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
+
+  // if we can't find the split point, return false
   if(!find_blockchain_supplement(qblock_ids, resp.start_height))
+  {
     return false;
+  }
 
   resp.total_height = get_current_blockchain_height();
   size_t count = 0;
-  for(size_t i = resp.start_height; i != m_db->height() && count < BLOCKS_IDS_SYNCHRONIZING_DEFAULT_COUNT; i++, count++)
-    resp.m_block_ids.push_back(get_block_hash(m_blocks[i].bl));
+  for(size_t i = resp.start_height; i <= m_db->height() && count < BLOCKS_IDS_SYNCHRONIZING_DEFAULT_COUNT; i++, count++)
+  {
+    resp.m_block_ids.push_back(m_db->get_block_hash_from_height(i));
+  }
   return true;
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
+//FIXME: change argument to std::vector, low priority
+// find split point between ours and foreign blockchain (or start at
+// blockchain height <req_start_block>), and return up to max_count FULL
+// blocks by reference.
 bool Blockchain::find_blockchain_supplement(const uint64_t req_start_block, const std::list<crypto::hash>& qblock_ids, std::list<std::pair<block, std::list<transaction> > >& blocks, uint64_t& total_height, uint64_t& start_height, size_t max_count)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  if(req_start_block > 0) {
-     start_height = req_start_block; 
-  } else {
-    if(!find_blockchain_supplement(qblock_ids, start_height))
+
+  // if a specific start height has been requested
+  if(req_start_block > 0)
+  {
+    // if requested height is higher than our chain, return false -- we can't help
+    if (req_start_block > m_db->height())
+    {
       return false;
+    }
+    start_height = req_start_block; 
+  }
+  else
+  {
+    if(!find_blockchain_supplement(qblock_ids, start_height))
+    {
+      return false;
+    }
   }
 
   total_height = get_current_blockchain_height();
   size_t count = 0;
-  for(size_t i = start_height; i != m_db->height() && count < max_count; i++, count++)
+  for(size_t i = start_height; i <= m_db->height() && count < max_count; i++, count++)
   {
     blocks.resize(blocks.size()+1);
-    blocks.back().first = m_blocks[i].bl;
+    blocks.back().first = m_db->get_block_from_height(i);
     std::list<crypto::hash> mis;
     get_transactions(m_blocks[i].bl.tx_hashes, blocks.back().second, mis);
     CHECK_AND_ASSERT_MES(!mis.size(), false, "internal error, transaction from block not found");
@@ -1588,26 +1609,6 @@ size_t Blockchain::get_total_transactions()
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
   return m_db->get_tx_count();
-}
-//------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
-bool Blockchain::get_outs(uint64_t amount, std::list<crypto::public_key>& pkeys)
-{
-  CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  auto it = m_outputs.find(amount);
-  if(it == m_outputs.end())
-    return true;
-
-  BOOST_FOREACH(const auto& out_entry, it->second)
-  {
-    auto tx_it = m_transactions.find(out_entry.first);
-    CHECK_AND_ASSERT_MES(tx_it != m_transactions.end(), false, "transactions outs global index consistency broken: wrong tx id in index");
-    CHECK_AND_ASSERT_MES(tx_it->second.tx.vout.size() > out_entry.second, false, "transactions outs global index consistency broken: index in tx_outx more then size");
-    CHECK_AND_ASSERT_MES(tx_it->second.tx.vout[out_entry.second].target.type() == typeid(txout_to_key), false, "transactions outs global index consistency broken: index in tx_outx more then size");
-    pkeys.push_back(boost::get<txout_to_key>(tx_it->second.tx.vout[out_entry.second].target).key);
-  }
-
-  return true;
 }
 //------------------------------------------------------------------
 // This function checks each input in the transaction <tx> to make sure it
@@ -1660,21 +1661,20 @@ bool Blockchain::check_for_double_spend(const transaction& tx, key_images_contai
       return false;
     }
   }
+
+  return true;
 }
 //------------------------------------------------------------------
-//TODO: rewrite using BlockchainDB
 bool Blockchain::get_tx_outputs_gindexs(const crypto::hash& tx_id, std::vector<uint64_t>& indexs)
 {
   CRITICAL_REGION_LOCAL(m_blockchain_lock);
-  auto it = m_transactions.find(tx_id);
-  if(it == m_transactions.end())
+  if (!m_db->tx_exists(tx_id))
   {
-    LOG_PRINT_RED_L0("warning: get_tx_outputs_gindexs failed to find transaction with id = " << tx_id);
+    LOG_PRINT_L0("warning: get_tx_outputs_gindexs failed to find transaction with id = " << tx_id);
     return false;
   }
 
-  CHECK_AND_ASSERT_MES(it->second.m_global_output_indexes.size(), false, "internal error: global indexes for transaction " << tx_id << " is empty");
-  indexs = it->second.m_global_output_indexes;
+  indexs = m_db->get_tx_output_indices(tx_id);
   return true;
 }
 //------------------------------------------------------------------
@@ -1687,7 +1687,7 @@ bool Blockchain::check_tx_inputs(const transaction& tx, uint64_t& max_used_block
   bool res = check_tx_inputs(tx, &max_used_block_height);
   if(!res) return false;
   CHECK_AND_ASSERT_MES(max_used_block_height < m_db->height(), false,  "internal error: max used block index=" << max_used_block_height << " is not less then blockchain size = " << m_db->height());
-  get_block_hash(m_db->get_block_hash_from_height(max_used_block_height), max_used_block_id);
+  max_used_block_id = m_db->get_block_hash_from_height(max_used_block_height);
   return true;
 }
 //------------------------------------------------------------------
@@ -1823,6 +1823,19 @@ uint64_t Blockchain::get_adjusted_time()
   return time(NULL);
 }
 //------------------------------------------------------------------
+bool Blockchain::check_block_timestamp(const std::vector<uint64_t>& timestamps, const block& b)
+{
+  uint64_t median_ts = epee::misc_utils::median(timestamps);
+
+  if(b.timestamp < median_ts)
+  {
+    LOG_PRINT_L0("Timestamp of block with id: " << get_block_hash(b) << ", " << b.timestamp << ", less than median of last " << BLOCKCHAIN_TIMESTAMP_CHECK_WINDOW << " blocks, " << median_ts);
+    return false;
+  }
+
+  return true;
+}
+//------------------------------------------------------------------
 // This function grabs the timestamps from the most recent <n> blocks,
 // where n = BLOCKCHAIN_TIMESTAMP_CHECK_WINDOW.  If there are not those many
 // blocks in the blockchain, the timestap is assumed to be valid.  If there
@@ -1830,7 +1843,7 @@ uint64_t Blockchain::get_adjusted_time()
 //   true if the block's timestamp is not less than the timestamp of the
 //       median of the selected blocks
 //   false otherwise
-bool Blockchain::check_block_timestamp_main(const block& b)
+bool Blockchain::check_block_timestamp(const block& b)
 {
   if(b.timestamp > get_adjusted_time() + CRYPTONOTE_BLOCK_FUTURE_TIME_LIMIT)
   {
@@ -1856,16 +1869,7 @@ bool Blockchain::check_block_timestamp_main(const block& b)
     timestamps.push_back(m_db->get_block_timestamp(offset));
   }
 
-
-  uint64_t median_ts = epee::misc_utils::median(timestamps);
-
-  if(b.timestamp < median_ts)
-  {
-    LOG_PRINT_L0("Timestamp of block with id: " << get_block_hash(b) << ", " << b.timestamp << ", less than median of last " << BLOCKCHAIN_TIMESTAMP_CHECK_WINDOW << " blocks, " << median_ts);
-    return false;
-  }
-
-  return true;
+  return check_block_timestamp(timestamps, b);
 }
 //------------------------------------------------------------------
 //      Needs to validate the block and acquire each transaction from the
@@ -2025,7 +2029,7 @@ bool Blockchain::handle_block_to_main_chain(const block& bl, const crypto::hash&
   }
 
   uint64_t base_reward = 0;
-  uint64_t already_generated_coins = m_db->height() ? m_db->get_block_already_generated_coins(m_db->height() : 0;
+  uint64_t already_generated_coins = m_db->height() ? m_db->get_block_already_generated_coins(m_db->height()) : 0;
   if(!validate_miner_transaction(bl, cumulative_block_size, fee_summary, base_reward, already_generated_coins))
   {
     LOG_PRINT_L0("Block with id: " << id
@@ -2037,7 +2041,6 @@ bool Blockchain::handle_block_to_main_chain(const block& bl, const crypto::hash&
   block_extended_info bei = boost::value_initialized<block_extended_info>();
   size_t block_size;
   difficulty_type cumulative_difficulty;
-  uint64_t already_generated_coins;
 
   // populate various metadata about the block to be stored alongside it.
   block_size = cumulative_block_size;

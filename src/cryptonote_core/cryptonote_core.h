@@ -77,10 +77,13 @@ namespace cryptonote
      bool get_blockchain_top(uint64_t& heeight, crypto::hash& top_id);
      bool get_blocks(uint64_t start_offset, size_t count, std::list<block>& blocks, std::list<transaction>& txs);
      bool get_blocks(uint64_t start_offset, size_t count, std::list<block>& blocks);
+
+     // TODO: move to definition/impl file, and shouldn't return bool
      template<class t_ids_container, class t_blocks_container, class t_missed_container>
      bool get_blocks(const t_ids_container& block_ids, t_blocks_container& blocks, t_missed_container& missed_bs)
      {
-       return m_Blockchain.get_blocks(block_ids, blocks, missed_bs);
+       m_Blockchain.get_blocks(block_ids, blocks, missed_bs);
+       return true;
      }
      crypto::hash get_block_id_by_height(uint64_t height);
      bool get_transactions(const std::vector<crypto::hash>& txs_ids, std::list<transaction>& txs, std::list<crypto::hash>& missed_txs);
