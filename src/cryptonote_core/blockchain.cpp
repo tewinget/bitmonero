@@ -2061,6 +2061,7 @@ bool Blockchain::handle_block_to_main_chain(const block& bl, const crypto::hash&
   }
   catch (const std::exception& e)
   {
+    //TODO: figure out the best way to deal with this failure
     LOG_ERROR("Error adding block with hash: " << id << " to blockchain, what = " << e.what());
     add_success = false;
   }

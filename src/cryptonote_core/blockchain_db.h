@@ -86,6 +86,7 @@
  *   blocks      get_blocks_range(height1, height2)
  *   hashes      get_hashes_range(height1, height2)
  *   hash        top_block_hash()
+ *   block       get_top_block()
  *   height      height()
  *   void        pop_block(block&, tx_list&)
  *
@@ -312,6 +313,54 @@ class OUTPUT_DNE : public std::exception
 
 class BlockchainDB
 {
+private:
+  /*********************************************************************
+   * private virtual members
+   *********************************************************************/
+
+  // tells the subclass to add the block and metadata to storage
+  void add_block( const block& blk
+                , const size_t& block_size
+                , const difficulty_type& cumulative_difficulty
+                , const uint64_t& coins_generated
+                ) = 0;
+
+  // tells the subclass to remove data about a block
+  void remove_block(const crypto::hash& blk_hash) = 0;
+
+  // tells the subclass to store the transaction and its metadata
+  void add_transaction_data(const crypto::hash& blk_hash, const transaction& tx) = 0;
+
+  // tells the subclass to remove data about a transaction
+  void remove_transaction_data(const crypto::hash& tx_hash) = 0;
+
+  // tells the subclass to store an output
+  void add_output(const crypto::hash& tx_hash, const tx_out& tx_output, const uint64_t& local_index) = 0;
+
+  // tells the subclass to remove an output
+  void remove_output(const tx_out& tx_output) = 0;
+
+  // tells the subclass to store a spent key
+  void add_spent_key(const crypto::key_image& k_image) = 0;
+
+  // tells the subclass to remove a spent key
+  void remove_spent_key(const crypto::key_image& k_image) = 0;
+
+
+  /*********************************************************************
+   * private concrete members
+   *********************************************************************/
+
+  // private version of pop_block, for undoing if an add_block goes tits up
+  void pop_block();
+
+  // helper function for add_transactions, to add each individual tx
+  void add_transaction(const crypto::hash& blk_hash, const transaction& tx);
+
+  // helper function to remove transaction from blockchain
+  void remove_transaction(const crypto::hash& tx_hash);
+
+
 public:
   // open the db at location <filename>, or create it if there isn't one.
   virtual void open(const std::string& filename) = 0;
@@ -340,12 +389,12 @@ public:
 
 
   // adds a block with the given metadata to the top of the blockchain, returns the new height
-  virtual uint64_t add_block( const block& blk
-                            , const size_t& block_size
-                            , const difficulty_type& cumulative_difficulty
-                            , const uint64_t& coins_generated
-                            , const std::vector<transaction>& txs
-                            ) = 0;
+  uint64_t add_block( const block& blk
+                    , const size_t& block_size
+                    , const difficulty_type& cumulative_difficulty
+                    , const uint64_t& coins_generated
+                    , const std::vector<transaction>& txs
+                    );
 
   // return true if a block with hash <h> exists in the blockchain
   virtual bool block_exists(const crypto::hash& h) = 0;
@@ -393,6 +442,9 @@ public:
   // return the hash of the top block on the chain
   virtual crypto::hash top_block_hash() = 0;
 
+  // return the block at the top of the blockchain
+  virtual crypto::block get_top_block() = 0;
+
   // return the index of the top block on the chain
   // NOTE: for convenience using heights as indices, this is not the total
   // size of the blockchain, but rather the index of the top block.  As the
@@ -406,7 +458,7 @@ public:
   // When a block is popped, the transactions associated with it need to be
   // removed, as well as outputs and spent key images associated with
   // those transactions.
-  virtual void pop_block(block& blk, std::vector<transaction>& txs) = 0;
+  void pop_block(block& blk, std::vector<transaction>& txs);
 
 
   // return true if a transaction with hash <h> exists
@@ -425,7 +477,7 @@ public:
   // return list of tx with hashes <hlist>.
   // TODO: decide if a missing hash means return empty list
   // or just skip that hash
-  virtual std::list<transaction> get_tx_list(const std::list<crypto::hash>& hlist) = 0;
+  virtual std::list<transaction> get_tx_list(const std::vector<crypto::hash>& hlist) = 0;
 
   // returns height of block that contains transaction with hash <h>
   virtual uint64_t get_tx_block_height(const crypto::hash& h) = 0;
