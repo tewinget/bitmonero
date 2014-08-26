@@ -27,6 +27,7 @@
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "cryptonote_core/blockchain_db.h"
+#include "cryptonote_format_utils.h"
 
 namespace cryptonote
 {
@@ -36,14 +37,6 @@ void BlockchainDB::pop_block()
   block blk;
   std::vector<transaction> txs;
   pop_block(blk, txs);
-}
-
-void BlockchainDB::add_transactions(const crypto::hash& blk_hash, const std::vector<transaction>& txs)
-{
-  for (const transaction& tx : txs)
-  {
-    add_transaction(blk_hash, tx);
-  }
 }
 
 void BlockchainDB::add_transaction(const crypto::hash& blk_hash, const transaction& tx)
@@ -59,11 +52,11 @@ void BlockchainDB::add_transaction(const crypto::hash& blk_hash, const transacti
     add_output(tx_hash, tx.vout[i], i);
   }
 
-  for (const txin_v& tx_in : tx.vin)
+  for (const txin_v& tx_input : tx.vin)
   {
-    if (tx_in.type() == typeid(txin_to_key))
+    if (tx_input.type() == typeid(txin_to_key))
     {
-      add_spent_key(boost::get<txin_to_key>(tx_in).k_image);
+      add_spent_key(boost::get<txin_to_key>(tx_input).k_image);
     }
   }
 }
@@ -130,9 +123,9 @@ void BlockchainDB::remove_transaction(const crypto::hash& tx_hash)
 
   for (const txin_v& tx_input : tx.vin)
   {
-    if (tx_in.type() == typeid(txin_to_key))
+    if (tx_input.type() == typeid(txin_to_key))
     {
-      remove_spent_key(boost::get<txin_to_key>(tx_in).k_image);
+      remove_spent_key(boost::get<txin_to_key>(tx_input).k_image);
     }
   }
 

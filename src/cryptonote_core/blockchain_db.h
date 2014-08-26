@@ -319,38 +319,37 @@ private:
    *********************************************************************/
 
   // tells the subclass to add the block and metadata to storage
-  void add_block( const block& blk
+  virtual void add_block( const block& blk
                 , const size_t& block_size
                 , const difficulty_type& cumulative_difficulty
                 , const uint64_t& coins_generated
                 ) = 0;
 
   // tells the subclass to remove data about a block
-  void remove_block(const crypto::hash& blk_hash) = 0;
+  virtual void remove_block(const crypto::hash& blk_hash) = 0;
 
   // tells the subclass to store the transaction and its metadata
-  void add_transaction_data(const crypto::hash& blk_hash, const transaction& tx) = 0;
+  virtual void add_transaction_data(const crypto::hash& blk_hash, const transaction& tx) = 0;
 
   // tells the subclass to remove data about a transaction
-  void remove_transaction_data(const crypto::hash& tx_hash) = 0;
+  virtual void remove_transaction_data(const crypto::hash& tx_hash) = 0;
 
   // tells the subclass to store an output
-  void add_output(const crypto::hash& tx_hash, const tx_out& tx_output, const uint64_t& local_index) = 0;
+  virtual void add_output(const crypto::hash& tx_hash, const tx_out& tx_output, const uint64_t& local_index) = 0;
 
   // tells the subclass to remove an output
-  void remove_output(const tx_out& tx_output) = 0;
+  virtual void remove_output(const tx_out& tx_output) = 0;
 
   // tells the subclass to store a spent key
-  void add_spent_key(const crypto::key_image& k_image) = 0;
+  virtual void add_spent_key(const crypto::key_image& k_image) = 0;
 
   // tells the subclass to remove a spent key
-  void remove_spent_key(const crypto::key_image& k_image) = 0;
+  virtual void remove_spent_key(const crypto::key_image& k_image) = 0;
 
 
   /*********************************************************************
    * private concrete members
-   *********************************************************************/
-
+   *********************************************************************/ 
   // private version of pop_block, for undoing if an add_block goes tits up
   void pop_block();
 
@@ -443,7 +442,7 @@ public:
   virtual crypto::hash top_block_hash() = 0;
 
   // return the block at the top of the blockchain
-  virtual crypto::block get_top_block() = 0;
+  virtual block get_top_block() = 0;
 
   // return the index of the top block on the chain
   // NOTE: for convenience using heights as indices, this is not the total
