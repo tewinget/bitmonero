@@ -36,6 +36,7 @@
 #include "version.h"
 #include "string_tools.h"
 #include "common/util.h"
+#include "common/dns_utils.h"
 #include "net/net_helper.h"
 #include "math_helper.h"
 #include "p2p_protocol_defs.h"
@@ -269,17 +270,33 @@ namespace nodetool
   template<class t_payload_net_handler>
   bool node_server<t_payload_net_handler>::init(const boost::program_options::variables_map& vm)
   {
-    ADD_HARDCODED_SEED_NODE("62.210.78.186:18080");
-    ADD_HARDCODED_SEED_NODE("195.12.60.154:18080");
-    ADD_HARDCODED_SEED_NODE("54.241.246.125:18080");
-    ADD_HARDCODED_SEED_NODE("107.170.157.169:18080");
-    ADD_HARDCODED_SEED_NODE("54.207.112.216:18080");
-    ADD_HARDCODED_SEED_NODE("78.27.112.54:18080");
-    ADD_HARDCODED_SEED_NODE("209.222.30.57:18080");
-    ADD_HARDCODED_SEED_NODE("80.71.13.55:18080");
-    ADD_HARDCODED_SEED_NODE("107.178.112.126:18080");
-    ADD_HARDCODED_SEED_NODE("107.158.233.98:18080");
-    ADD_HARDCODED_SEED_NODE("64.22.111.2:18080");
+    // for each hostname in the seed nodes list, attempt to DNS resolve and
+    // add the result addresses as seed nodes
+    // TODO: at some point add IPv6 support, but that won't be relevant
+    // for some time yet.
+    for (const std::string& addr_str : m_seed_nodes_list)
+    {
+      std::vector<std::string> addr_list = tools::DNSResolver::instance().get_ipv4(addr_str);
+      for (const std::string& a : addr_list)
+      {
+        append_net_address(m_seed_nodes, a + ":18080");
+      }
+    }
+
+    if (!m_seed_nodes.size())
+    {
+      ADD_HARDCODED_SEED_NODE("62.210.78.186:18080");
+      ADD_HARDCODED_SEED_NODE("195.12.60.154:18080");
+      ADD_HARDCODED_SEED_NODE("54.241.246.125:18080");
+      ADD_HARDCODED_SEED_NODE("107.170.157.169:18080");
+      ADD_HARDCODED_SEED_NODE("54.207.112.216:18080");
+      ADD_HARDCODED_SEED_NODE("78.27.112.54:18080");
+      ADD_HARDCODED_SEED_NODE("209.222.30.57:18080");
+      ADD_HARDCODED_SEED_NODE("80.71.13.55:18080");
+      ADD_HARDCODED_SEED_NODE("107.178.112.126:18080");
+      ADD_HARDCODED_SEED_NODE("107.158.233.98:18080");
+      ADD_HARDCODED_SEED_NODE("64.22.111.2:18080");
+    }
 
     bool res = handle_command_line(vm);
     CHECK_AND_ASSERT_MES(res, false, "Failed to handle command line");
