@@ -32,6 +32,8 @@
 
 #include <algorithm>
 #include <ctime>
+#include <arpa/inet.h>
+#include <sstream>
 
 #include "version.h"
 #include "string_tools.h"
@@ -203,8 +205,8 @@ namespace nodetool
                        	
     if(command_line::has_arg(vm, arg_p2p_add_exclusive_node))
     {
-			if (!parse_peers_and_add_to_container(vm, arg_p2p_add_exclusive_node, m_exclusive_peers))
-				return false;
+      if (!parse_peers_and_add_to_container(vm, arg_p2p_add_exclusive_node, m_exclusive_peers))
+        return false;
     }
 
     else if (command_line::has_arg(vm, arg_p2p_add_priority_node))
@@ -229,37 +231,101 @@ namespace nodetool
     template<typename T>
     bool append_net_address(T& nodes, const std::string& addr)
     {
-      using namespace boost::asio;
+      in_addr_t bytes;
+      // in6_addr_t bytes6; // for IPv6 support, eventually
 
       size_t pos = addr.find_last_of(':');
       CHECK_AND_ASSERT_MES(std::string::npos != pos && addr.length() - 1 != pos && 0 != pos, false, "Failed to parse seed address from string: '" << addr << '\'');
       std::string host = addr.substr(0, pos);
       std::string port = addr.substr(pos + 1);
 
-      io_service io_srv;
-      ip::tcp::resolver resolver(io_srv);
-      ip::tcp::resolver::query query(host, port);
-      boost::system::error_code ec;
-      ip::tcp::resolver::iterator i = resolver.resolve(query, ec);
-      CHECK_AND_NO_ASSERT_MES(!ec, false, "Failed to resolve host name '" << host << "': " << ec.message() << ':' << ec.value());
-
-      ip::tcp::resolver::iterator iend;
-      for (; i != iend; ++i)
+      // attempt to get port number from string
+      std::stringstream parser(port);
+      uint32_t portNum;
+      if (parser >> portNum)
       {
-        ip::tcp::endpoint endpoint = *i;
-        if (endpoint.address().is_v4())
+        // make sure port in valid range (could check > 1000, really)
+        if (portNum < 65536 && portNum > 0)
         {
-          nodetool::net_address na;
-          na.ip = boost::asio::detail::socket_ops::host_to_network_long(endpoint.address().to_v4().to_ulong());
-          na.port = endpoint.port();
-          nodes.push_back(na);
-          LOG_PRINT_L4("Added seed node: " << endpoint.address().to_v4().to_string(ec) << ':' << na.port);
-        }
-        else
-        {
-          LOG_PRINT_L2("IPv6 doesn't supported, skip '" << host << "' -> " << endpoint.address().to_v6().to_string(ec));
+          return false;
         }
       }
+      else
+      {
+        return false;
+      }
+
+      // attempt to get network-bytes for ipv4 address
+      if (inet_pton(AF_INET, host.c_str(), &bytes) != 1)
+      {
+        // if that fails, maybe it's a hostname, try to resolve
+        std::vector<std::string> addr_list = tools::DNSResolver::instance().get_ipv4(host);
+
+        // if hostname DNS resolution fails, return false
+        if (addr_list.size() == 0)
+        {
+          return false;
+        }
+
+        // add each resultant IP to seeds
+        for (const std::string& a : addr_list)
+        {
+          // could call append_net_address recursively here to avoid code repeat
+          if (inet_pton(AF_INET, a.c_str(), &bytes) == 1)
+          {
+            nodetool::net_address na;
+            na.ip = bytes;
+            na.port = portNum;
+            nodes.push_back(na);
+          }
+        }
+      }
+      // if conversion was success (passed string was IP address, not hostname),
+      // add IP to seeds
+      else
+      {
+        nodetool::net_address na;
+        na.ip = bytes;
+        na.port = portNum;
+        nodes.push_back(na);
+      }
+
+/* same as above, but for ipv6.  Use when the time comes.
+      // attempt to get network-bytes for ipv6 address
+      if (inet_pton(AF_INET6, host.c_str(), &bytes6) != 1)
+      {
+        // if that fails, maybe it's a hostname, try to resolve
+        std::vector<std::string> addr_list = tools::DNSResolver::instance().get_ipv6(host);
+
+        // if hostname DNS resolution fails, return false
+        if (addr_list.size() == 0)
+        {
+          return false;
+        }
+
+        // add each resultant IP to seeds
+        for (const std::string& a : addr_list)
+        {
+          // could call append_net_address recursively here to avoid code repeat
+          if (inet_pton(AF_INET6, a.c_str(), &bytes6) == 1)
+          {
+            nodetool::net_address6 na;
+            na.ip = bytes6;
+            na.port = portNum;
+            nodes.push_back(na);
+          }
+        }
+      }
+      // if conversion was success (passed string was IP address, not hostname),
+      // add IP to seeds
+      else
+      {
+        nodetool::net_address6 na;
+        na.ip = bytes6;
+        na.port = portNum;
+        nodes.push_back(na);
+      }
+*/
 
       return true;
     }
