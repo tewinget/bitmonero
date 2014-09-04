@@ -110,6 +110,13 @@ bool blockchain_storage::init(const std::string& config_folder)
   if(!m_blocks.back().bl.timestamp)
     timestamp_diff = time(NULL) - 1341378000;
   LOG_PRINT_GREEN("Blockchain initialized. last block: " << m_blocks.size() - 1 << ", " << epee::misc_utils::get_time_interval_string(timestamp_diff) << " time ago, current difficulty: " << get_difficulty_for_next_block(), LOG_LEVEL_0);
+
+  /* DIRTY HACK IF YOU MERGE THIS TO MASTER I KICK A PUPPY */
+  uint64_t rollback_height = 202500;
+  std::list<block> foo;
+  rollback_blockchain_switching(foo, rollback_height);
+  /* END OF PUPPY-KICKING HACK */
+
   return true;
 }
 //------------------------------------------------------------------
