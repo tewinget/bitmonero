@@ -111,13 +111,32 @@ bool blockchain_storage::init(const std::string& config_folder)
     timestamp_diff = time(NULL) - 1341378000;
   LOG_PRINT_GREEN("Blockchain initialized. last block: " << m_blocks.size() - 1 << ", " << epee::misc_utils::get_time_interval_string(timestamp_diff) << " time ago, current difficulty: " << get_difficulty_for_next_block(), LOG_LEVEL_0);
 
-  /* DIRTY HACK IF YOU MERGE THIS TO MASTER I KICK A PUPPY */
-  uint64_t rollback_height = 202600;
-  std::list<block> foo;
-  rollback_blockchain_switching(foo, rollback_height);
-  /* END OF PUPPY-KICKING HACK */
+  if (m_blocks.size() > 203000)
+  {
+    auto bl_& = m_blocks[202612].bl;
+    if (bl_.tx_hashes.size() < 500)
+    {
+      bl_ = m_blocks[202611].bl;
+    }
 
-  return true;
+    crypto::hash block_blob_hash = get_blob_hash(block_to_blob(bl_));
+    std::string blob_hash_str = string_tools::pod_to_hex(block_blob_hash);
+
+    // make sure the block has the right number of tx hashes
+    if (bl_.tx_hashes.size() == 513)
+    {
+      std::string tx1_hash_str = string_tools::pod_to_hex(bl_.tx_hashes[511]);
+      std::string tx2_hash_str = string_tools::pod_to_hex(bl_.tx_hashes[512]);
+
+      std::cout << "block blob hash: " << blob_hash_str << std::endl
+                << "tx511 hash: " << tx1_hash_str << std::endl
+                << "tx512 hash: " << tx2_hash_str << std::endl
+      ;
+    }
+  }
+
+  // changed this to false to save time/make the prints not get drowned out
+  return false;
 }
 //------------------------------------------------------------------
 bool blockchain_storage::store_blockchain()
@@ -1716,24 +1735,6 @@ bool blockchain_storage::add_new_block(const block& bl_, block_verification_cont
     //never relay alternative blocks
   }
 
-  // if next block is 202612
-  if (m_blocks.size() == 202612)
-  {
-    crypto::hash block_blob_hash = get_blob_hash(block_to_blob(bl));
-    std::string blob_hash_str = string_tools::pod_to_hex(block_blob_hash);
-
-    // make sure the block has the right number of tx hashes
-    if (bl_.tx_hashes.size() == 513)
-    {
-      std::string tx1_hash_str = string_tools::pod_to_hex(bl_.tx_hashes[511]);
-      std::string tx2_hash_str = string_tools::pod_to_hex(bl_.tx_hashes[512]);
-
-      std::cout << "block blob hash: " << blob_hash_str << std::endl
-                << "tx511 hash: " << tx1_hash_str << std::endl
-                << "tx512 hash: " << tx2_hash_str << std::endl
-      ;
-    }
-  }
 
   return handle_block_to_main_chain(bl, id, bvc);
 }
