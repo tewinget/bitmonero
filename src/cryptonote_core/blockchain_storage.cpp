@@ -113,7 +113,7 @@ bool blockchain_storage::init(const std::string& config_folder)
 
   if (m_blocks.size() > 203000)
   {
-    auto bl_& = m_blocks[202612].bl;
+    auto& bl_ = m_blocks[202612].bl;
     if (bl_.tx_hashes.size() < 500)
     {
       bl_ = m_blocks[202611].bl;
