@@ -120,13 +120,13 @@ bool blockchain_storage::init(const std::string& config_folder)
     }
 
     crypto::hash block_blob_hash = get_blob_hash(block_to_blob(bl_));
-    std::string blob_hash_str = string_tools::pod_to_hex(block_blob_hash);
+    std::string blob_hash_str = epee::string_tools::pod_to_hex(block_blob_hash);
 
     // make sure the block has the right number of tx hashes
     if (bl_.tx_hashes.size() == 513)
     {
-      std::string tx1_hash_str = string_tools::pod_to_hex(bl_.tx_hashes[511]);
-      std::string tx2_hash_str = string_tools::pod_to_hex(bl_.tx_hashes[512]);
+      std::string tx1_hash_str = epee::string_tools::pod_to_hex(bl_.tx_hashes[511]);
+      std::string tx2_hash_str = epee::string_tools::pod_to_hex(bl_.tx_hashes[512]);
 
       std::cout << "block blob hash: " << blob_hash_str << std::endl
                 << "tx511 hash: " << tx1_hash_str << std::endl
