@@ -117,7 +117,7 @@ bool blockchain_storage::init(const std::string& config_folder)
     {
       std::cout << "Block with num tx == " << bei.bl.tx_hashes.size()
                 << " found at height " << bei.height
-                << ", id = ", get_block_hash(bei.bl)
+                << ", id = " << epee::string_tools::pod_to_hex(get_block_hash(bei.bl))
                 << std::endl;
     }
   }
