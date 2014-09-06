@@ -111,6 +111,16 @@ bool blockchain_storage::init(const std::string& config_folder)
     timestamp_diff = time(NULL) - 1341378000;
   LOG_PRINT_GREEN("Blockchain initialized. last block: " << m_blocks.size() - 1 << ", " << epee::misc_utils::get_time_interval_string(timestamp_diff) << " time ago, current difficulty: " << get_difficulty_for_next_block(), LOG_LEVEL_0);
 
+  for (auto& bei : m_blocks)
+  {
+    if (bei.bl.tx_hashes.size() > 500)
+    {
+      std::cout << "Block with num tx == " << bei.bl.tx_hashes.size()
+                << " found at height " << bei.height
+                << ", id = ", get_block_hash(bei.bl)
+                << std::endl;
+    }
+  }
   if (m_blocks.size() > 203000)
   {
     auto& bl_ = m_blocks[202612].bl;
