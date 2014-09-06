@@ -119,8 +119,9 @@ bool blockchain_storage::init(const std::string& config_folder)
       bl_ = m_blocks[202611].bl;
     }
 
-    crypto::hash block_blob_hash = get_blob_hash(block_to_blob(bl_));
-    std::string blob_hash_str = epee::string_tools::pod_to_hex(block_blob_hash);
+    crypto::hash block_longhash = null_hash;
+    get_block_longhash(bl_, block_longhash, 202612);
+    std::string longhash_str = epee::string_tools::pod_to_hex(block_longhash);
 
     // make sure the block has the right number of tx hashes
     if (bl_.tx_hashes.size() == 513)
@@ -128,7 +129,7 @@ bool blockchain_storage::init(const std::string& config_folder)
       std::string tx1_hash_str = epee::string_tools::pod_to_hex(bl_.tx_hashes[511]);
       std::string tx2_hash_str = epee::string_tools::pod_to_hex(bl_.tx_hashes[512]);
 
-      std::cout << "block blob hash: " << blob_hash_str << std::endl
+      std::cout << "block longhash: " << longhash_str << std::endl
                 << "tx511 hash: " << tx1_hash_str << std::endl
                 << "tx512 hash: " << tx2_hash_str << std::endl
       ;
