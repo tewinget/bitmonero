@@ -206,7 +206,7 @@ namespace tools
     
     static std::vector<std::vector<cryptonote::tx_destination_entry>> split_amounts(std::vector<cryptonote::tx_destination_entry> dsts, size_t num_splits);
 
-    static std::string address_from_url(const std::string& url, bool& dnssec_valid);
+    static std::vector<std::string> addresses_from_url(const std::string& url, bool& dnssec_valid);
 
     static std::string address_from_txt_record(const std::string& s);
   private:
