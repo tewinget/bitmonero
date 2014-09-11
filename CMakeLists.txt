@@ -55,6 +55,8 @@ if (UNIX AND NOT APPLE)
   find_package(Threads)
 endif()
 
+find_package(Unbound REQUIRED)
+
 #find_package(LevelDB REQUIRED) # TODO remove me completely later
 #if (LEVELDB_FOUND)
 #	include_directories(SYSTEM ${LEVELDB_INCLUDE})
@@ -184,11 +186,6 @@ else()
     add_custom_target(version ALL)
   endif()
 endif()
-
-# <expletive deleted> CMake bug making this not work.
-#find_package(Unbound REQUIRED)
-# Won't make sure this works, because that's broken.
-set(CMAKE_UNBOUND_LIB "-lunbound")
 
 add_subdirectory(contrib)
 add_subdirectory(external)
