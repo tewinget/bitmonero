@@ -118,14 +118,15 @@ DNSResolver::~DNSResolver()
   }
 }
 
-std::vector<std::string> DNSResolver::get_ipv4(const std::string& url)
+std::vector<std::string> DNSResolver::get_ipv4(const std::string& url, bool& dnssec_available, bool& dnssec_valid)
 {
   std::vector<std::string> addresses;
   char urlC[1000];  // waaaay too big, but just in case...
 
-  strncpy(urlC, url.c_str(), 999);
-  urlC[999] = '\0';
-  if (!check_address_syntax(urlC))
+  dnssec_available = false;
+  dnssec_valid = false;
+
+  if (!check_address_syntax(url))
   {
     return addresses;
   }
@@ -148,7 +149,7 @@ std::vector<std::string> DNSResolver::get_ipv4(const std::string& url)
   return addresses;
 }
 
-std::vector<std::string> DNSResolver::get_ipv6(const std::string& url)
+std::vector<std::string> DNSResolver::get_ipv6(const std::string& url, bool& dnssec_available, bool& dnssec_valid)
 {
   std::vector<std::string> addresses;
   char urlC[1000];  // waaaay too big, but just in case...
@@ -156,7 +157,10 @@ std::vector<std::string> DNSResolver::get_ipv6(const std::string& url)
   strncpy(urlC, url.c_str(), 999);
   urlC[999] = '\0';
 
-  if (!check_address_syntax(urlC))
+  dnssec_available = false;
+  dnssec_valid = false;
+
+  if (!check_address_syntax(url))
   {
     return addresses;
   }
@@ -178,7 +182,7 @@ std::vector<std::string> DNSResolver::get_ipv6(const std::string& url)
   return addresses;
 }
 
-std::vector<std::string> DNSResolver::get_txt_record(const std::string& url)
+std::vector<std::string> DNSResolver::get_txt_record(const std::string& url, bool& dnssec_available, bool& dnssec_valid)
 {
   std::vector<std::string> records;
   char urlC[1000];  // waaaay too big, but just in case...
@@ -186,7 +190,10 @@ std::vector<std::string> DNSResolver::get_txt_record(const std::string& url)
   strncpy(urlC, url.c_str(), 999);
   urlC[999] = '\0';
 
-  if (!check_address_syntax(urlC))
+  dnssec_available = false;
+  dnssec_valid = false;
+
+  if (!check_address_syntax(url))
   {
     return records;
   }
