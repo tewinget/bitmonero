@@ -89,7 +89,83 @@ namespace cryptonote {
     return !carry;
   }
 
-  difficulty_type next_difficulty(vector<uint64_t> timestamps, vector<difficulty_type> cumulative_difficulties, size_t target_seconds) {
+  /**
+   * @brief New difficulty function for Monero, returns difficulty for next block
+   *
+   * NOTE: this function is being written for use on a blockchain that long
+   * since had enough blocks to not worry about having enough for the
+   * difficulty windows, so it will not deal with the case of a new blockchain
+   * that does not have enough blocks and the technicalities therein.
+   *
+   * @param timestamps the most recent N timestamps,
+   * where N = DIFFICULTY_WINDOW_SIZE * DIFFICULTY_WINDOW_COUNT
+   *
+   * @param cumulative_difficulties the most recent N cumulative difficulties,
+   * where N = DIFFICULTY_WINDOW_SIZE * DIFFICULTY_WINDOW_COUNT
+   *
+   * @param target_seconds the target block time in seconds
+   *
+   * @return the difficulty for the block after the the blocks' whose data was passed
+   */
+  difficulty_type next_difficulty(vector<uint64_t> timestamps, vector<difficulty_type> cumulative_difficulties, size_t target_seconds)
+  {
+    // FIXME: this should be changed for new coins!
+    if (timestamps.size() < (DIFFICULTY_WINDOW_SIZE * DIFFICULTY_WINDOW_COUNT)
+          || cumulative_difficulties.size() < (DIFFICULTY_WINDOW_SIZE * DIFFICULTY_WINDOW_COUNT)
+          || timestamps.size() != cumulative_difficulties.size()
+       )
+    {
+      // TODO: make sure this is the correct invalid difficulty to return;
+      // this appears to be the case, as in the old diff algo, but should make sure.
+      return 0;
+    }
+
+    uint64_t time_span = 0;
+    difficulty_type total_work = 0;
+    uint64_t last_index = timestamps.size() - 1;  // go from end of list, in case too many blocks are passed
+
+    uint64_t total_weight_multipliers = 0;
+    for (unsigned int i = DIFFICULTY_WINDOW_COUNT; i > 0 ; i++)
+    {
+      total_weight_multipliers += i;
+    }
+
+    // windows would be, e.g. [10 - 8] [8 - 6] [6 - 4] [4 - 2] [2 - 0],
+    // which overlaps so that no singular difference in time or difficulty is
+    // left out of the calculation.
+    // For that case, DIFFICULTY_WINDOW_COUNT == 5 and DIFFICULTY_WINDOW_SIZE == 3
+    // TODO: overflow possibility is ignored for now, to aid in ease of debugging.
+    // at some point years down the road difficulty overflow might be possible,
+    // but for now it is not an issue.
+    for (unsigned int i = 0; i < DIFFICULTY_WINDOW_COUNT ; ++i)
+    {
+      uint64_t top_index = last_index - ((DIFFICULTY_WINDOW_SIZE - 1) * i);
+      uint64_t time_diff = timestamps[top_index] - timestamps[top_index - DIFFICULTY_WINDOW_SIZE + 1];
+      difficulty_type window_work = cumulative_difficulties[top_index] - cumulative_difficulties[top_index - DIFFICULTY_WINDOW_SIZE + 1];
+
+      time_span += time_diff * (DIFFICULTY_WINDOW_SIZE - i);
+      total_work += window_work * (DIFFICULTY_WINDOW_SIZE - i);
+    }
+
+    // divide by the total of weight multipliers
+    time_span /= total_weight_multipliers;
+    total_work /= total_weight_multipliers;
+
+    assert(total_work > 0);
+    uint64_t low, high;
+    mul(total_work, target_seconds, low, high);
+    if (high != 0 || low + time_span - 1 < low) {
+      return 0;
+    }
+    return (low + time_span - 1) / time_span;
+  }
+
+  difficulty_type next_difficulty(vector<uint64_t> timestamps, vector<difficulty_type> cumulative_difficulties)
+  {
+    return next_difficulty(std::move(timestamps), std::move(cumulative_difficulties), DIFFICULTY_TARGET);
+  }
+
+  difficulty_type next_difficulty_old(vector<uint64_t> timestamps, vector<difficulty_type> cumulative_difficulties, size_t target_seconds) {
     //cutoff DIFFICULTY_LAG
     if(timestamps.size() > DIFFICULTY_WINDOW)
     {
@@ -130,8 +206,8 @@ namespace cryptonote {
     return (low + time_span - 1) / time_span;
   }
 
-  difficulty_type next_difficulty(vector<uint64_t> timestamps, vector<difficulty_type> cumulative_difficulties)
+  difficulty_type next_difficulty_old(vector<uint64_t> timestamps, vector<difficulty_type> cumulative_difficulties)
   {
-    return next_difficulty(std::move(timestamps), std::move(cumulative_difficulties), DIFFICULTY_TARGET);
+    return next_difficulty_old(std::move(timestamps), std::move(cumulative_difficulties), DIFFICULTY_TARGET);
   }
 }

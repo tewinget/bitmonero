@@ -33,6 +33,11 @@
 #include <string>
 #include <boost/uuid/uuid.hpp>
 
+#define BLOCK_DIFFICULTY_CHANGE_FORK_HEIGHT             350000 // change this when hard fork happens
+#define DIFFICULTY_WINDOW_SIZE                          630
+#define DIFFICULTY_WINDOW_COUNT                         8
+#define DIFFICULTY_WINDOWS_TOTAL_COUNT                  DIFFICULTY_WINDOW_SIZE * DIFFICULTY_WINDOW_COUNT
+
 #define CRYPTONOTE_MAX_BLOCK_NUMBER                     500000000
 #define CRYPTONOTE_MAX_BLOCK_SIZE                       500000000  // block header blob limit, never used!
 #define CRYPTONOTE_GETBLOCKTEMPLATE_MAX_BLOCK_SIZE	196608 //size of block (bytes) that is the maximum that miners will produce
@@ -61,7 +66,7 @@
 
 #define ORPHANED_BLOCKS_MAX_COUNT                       100
 
-
+// old difficulty defs
 #define DIFFICULTY_TARGET                               60  // seconds
 #define DIFFICULTY_WINDOW                               720 // blocks
 #define DIFFICULTY_LAG                                  15  // !!!
