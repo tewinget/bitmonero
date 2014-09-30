@@ -27,8 +27,8 @@
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "common/dns_utils.h"
-#include <cstring>
 #include <sstream>
+#include <ldns/rr.h> // for RR type and class defs
 #include <unbound.h>
 
 namespace tools
@@ -99,11 +99,9 @@ DNSResolver::DNSResolver() : m_data(new DNSResolverData())
   // init libunbound context
   m_data->m_ub_context = ub_ctx_create();
 
-  char empty_string = '\0';
-
   // look for "/etc/resolv.conf" and "/etc/hosts" or platform equivalent
-  ub_ctx_resolvconf(m_data->m_ub_context, &empty_string);
-  ub_ctx_hosts(m_data->m_ub_context, &empty_string);
+  ub_ctx_resolvconf(m_data->m_ub_context, "");
+  ub_ctx_hosts(m_data->m_ub_context, "");
 }
 
 DNSResolver::~DNSResolver()
@@ -121,7 +119,6 @@ DNSResolver::~DNSResolver()
 std::vector<std::string> DNSResolver::get_ipv4(const std::string& url, bool& dnssec_available, bool& dnssec_valid)
 {
   std::vector<std::string> addresses;
-  char urlC[1000];  // waaaay too big, but just in case...
 
   dnssec_available = false;
   dnssec_valid = false;
@@ -135,7 +132,7 @@ std::vector<std::string> DNSResolver::get_ipv4(const std::string& url, bool& dns
   ub_result_ptr result;
 
   // call DNS resolver, blocking.  if return value not zero, something went wrong
-  if (!ub_resolve(m_data->m_ub_context, urlC, DNS_TYPE_A, DNS_CLASS_IN, &(result.ptr)))
+  if (!ub_resolve(m_data->m_ub_context, url.c_str(), LDNS_RR_TYPE_A, LDNS_RR_CLASS_IN, &(result.ptr)))
   {
     if (result.ptr->havedata)
     {
@@ -152,10 +149,6 @@ std::vector<std::string> DNSResolver::get_ipv4(const std::string& url, bool& dns
 std::vector<std::string> DNSResolver::get_ipv6(const std::string& url, bool& dnssec_available, bool& dnssec_valid)
 {
   std::vector<std::string> addresses;
-  char urlC[1000];  // waaaay too big, but just in case...
-
-  strncpy(urlC, url.c_str(), 999);
-  urlC[999] = '\0';
 
   dnssec_available = false;
   dnssec_valid = false;
@@ -168,7 +161,7 @@ std::vector<std::string> DNSResolver::get_ipv6(const std::string& url, bool& dns
   ub_result_ptr result;
 
   // call DNS resolver, blocking.  if return value not zero, something went wrong
-  if (!ub_resolve(m_data->m_ub_context, urlC, DNS_TYPE_AAAA, DNS_CLASS_IN, &(result.ptr)))
+  if (!ub_resolve(m_data->m_ub_context, url.c_str(), LDNS_RR_TYPE_AAAA, LDNS_RR_CLASS_IN, &(result.ptr)))
   {
     if (result.ptr->havedata)
     {
@@ -185,10 +178,6 @@ std::vector<std::string> DNSResolver::get_ipv6(const std::string& url, bool& dns
 std::vector<std::string> DNSResolver::get_txt_record(const std::string& url, bool& dnssec_available, bool& dnssec_valid)
 {
   std::vector<std::string> records;
-  char urlC[1000];  // waaaay too big, but just in case...
-
-  strncpy(urlC, url.c_str(), 999);
-  urlC[999] = '\0';
 
   dnssec_available = false;
   dnssec_valid = false;
@@ -201,7 +190,7 @@ std::vector<std::string> DNSResolver::get_txt_record(const std::string& url, boo
   ub_result_ptr result;
 
   // call DNS resolver, blocking.  if return value not zero, something went wrong
-  if (!ub_resolve(m_data->m_ub_context, urlC, DNS_TYPE_TXT, DNS_CLASS_IN, &(result.ptr)))
+  if (!ub_resolve(m_data->m_ub_context, url.c_str(), LDNS_RR_TYPE_TXT, LDNS_RR_CLASS_IN, &(result.ptr)))
   {
     if (result.ptr->havedata)
     {
