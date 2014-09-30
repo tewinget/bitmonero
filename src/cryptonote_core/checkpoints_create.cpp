@@ -150,7 +150,7 @@ bool load_checkpoints_from_dns(cryptonote::checkpoints& checkpoints)
 
   if (avail && !valid)
   {
-    LOG_PRINT_L0("DNSSEC present and failed validation for query last url, and all other urls either failed validation or returned no records");
+    LOG_PRINT_L0("WARNING: all checkpoints.moneropulse.net/org/co/se records either failed DNSSEC validation or returned no records");
     return true;
   }
 
