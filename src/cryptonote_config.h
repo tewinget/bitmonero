@@ -33,6 +33,11 @@
 #include <string>
 #include <boost/uuid/uuid.hpp>
 
+#define VERSION_CHANGE_VOTES_WINDOW                     500 // number of blocks to look at total for version change voting
+#define VERSION_CHANGE_VOTES_NEEDED                     100 // a percent of these many consecutive blocks must vote for version change
+#define VERSION_CHANGE_VOTES_MAJORITY                   80 // number of votes out of VERSION_CHANGE_VOTES_NEEDED votes to make a majority
+#define VERSION_CHANGE_MINOR_LABEL                      1 // a block with this minor version signifies a major version change in progress
+
 #define CRYPTONOTE_MAX_BLOCK_NUMBER                     500000000
 #define CRYPTONOTE_MAX_BLOCK_SIZE                       500000000  // block header blob limit, never used!
 #define CRYPTONOTE_GETBLOCKTEMPLATE_MAX_BLOCK_SIZE	196608 //size of block (bytes) that is the maximum that miners will produce
