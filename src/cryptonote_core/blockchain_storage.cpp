@@ -47,6 +47,7 @@
 #include "common/boost_serialization_helper.h"
 #include "warnings.h"
 #include "crypto/hash.h"
+#include "cryptonote_core/version_check.h"
 //#include "serialization/json_archive.h"
 
 using namespace cryptonote;
@@ -1772,4 +1773,87 @@ bool blockchain_storage::add_new_block(const block& bl_, block_verification_cont
   }
 
   return handle_block_to_main_chain(bl, id, bvc);
+}
+//------------------------------------------------------------------
+std::vector<block> blockchain_storage::get_last_n_blocks(uint64_t n)
+{
+  size_t offset = m_blocks.size() - std::min(m_blocks.size(), static_cast<size_t>(n));
+  std::vector<block> blocks;
+
+  for(; offset < m_blocks.size(); offset++)
+  {
+    blocks.push_back(m_blocks[offset].bl);
+  }
+  return blocks;
+}
+//------------------------------------------------------------------
+std::vector<block> blockchain_storage::get_last_n_blocks_alt_chain(const std::list<blocks_ext_by_hash::iterator>& alt_chain, block_extended_info& bei, uint64_t n)
+{
+  std::vector<block> blocks;
+
+  if(alt_chain.size() < n)
+  {
+    CRITICAL_REGION_LOCAL(m_blockchain_lock);
+    size_t main_chain_stop_offset = alt_chain.size() ? alt_chain.front()->second.height : bei.height;
+    size_t main_chain_count = n - std::min(static_cast<size_t>(n), alt_chain.size());
+    main_chain_count = std::min(main_chain_count, main_chain_stop_offset);
+    size_t main_chain_start_offset = main_chain_stop_offset - main_chain_count;
+
+    if(!main_chain_start_offset)
+      ++main_chain_start_offset; //skip genesis block
+    for(; main_chain_start_offset < main_chain_stop_offset; ++main_chain_start_offset)
+    {
+      blocks.push_back(m_blocks[main_chain_start_offset].bl);
+    }
+
+    BOOST_FOREACH(auto it, alt_chain)
+    {
+      blocks.push_back(it->second.bl);
+    }
+  }else
+  {
+    blocks.resize(std::min(alt_chain.size(), static_cast<size_t>(n)));
+    size_t count = 0;
+    size_t max_i = blocks.size()-1;
+    BOOST_REVERSE_FOREACH(auto it, alt_chain)
+    {
+      blocks[max_i - count] = it->second.bl;
+      count++;
+      if(count >= n)
+        break;
+    }
+  }
+
+  return blocks;
+}
+//------------------------------------------------------------------
+bool blockchain_storage::check_version_update_vote(std::vector<block>& blocks)
+{
+
+  if (blocks.size() != VERSION_CHANGE_VOTES_WINDOW)
+  {
+    return false;
+  }
+
+  std::vector<uint8_t> major;
+  std::vector<uint8_t> minor;
+  for (auto& bl : blocks)
+  {
+    major.push_back(bl.major_version);
+    minor.push_back(bl.minor_version);
+  }
+
+  return version_change_vote_passed(major, minor);
+}
+//------------------------------------------------------------------
+bool blockchain_storage::check_version_update_vote_main()
+{
+  auto blocks = get_last_n_blocks(VERSION_CHANGE_VOTES_WINDOW);
+  return check_version_update_vote(blocks);
+}
+//------------------------------------------------------------------
+bool blockchain_storage::check_version_update_vote_alt_chain(const std::list<blocks_ext_by_hash::iterator>& alt_chain, block_extended_info& bei)
+{
+  auto blocks = get_last_n_blocks_alt_chain(alt_chain, bei, VERSION_CHANGE_VOTES_WINDOW);
+  return check_version_update_vote(blocks);
 }

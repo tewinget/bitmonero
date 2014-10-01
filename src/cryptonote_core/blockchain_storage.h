@@ -243,6 +243,11 @@ namespace cryptonote
     bool complete_timestamps_vector(uint64_t start_height, std::vector<uint64_t>& timestamps);
     bool update_next_comulative_size_limit();
     bool store_genesis_block(bool testnet);
+    std::vector<block> get_last_n_blocks(uint64_t n);
+    std::vector<block> get_last_n_blocks_alt_chain(const std::list<blocks_ext_by_hash::iterator>& alt_chain, block_extended_info& bei, uint64_t n);
+    bool check_version_update_vote(std::vector<block>& blocks);
+    bool check_version_update_vote_main();
+    bool check_version_update_vote_alt_chain(const std::list<blocks_ext_by_hash::iterator>& alt_chain, block_extended_info& bei);
   };
 
 
