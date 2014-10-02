@@ -28,6 +28,8 @@
 // 
 // Parts of this file are originally copyright (c) 2012-2013 The Cryptonote developers
 
+#include <algorithm>
+
 #include "include_base_utils.h"
 using namespace epee;
 
@@ -40,24 +42,38 @@ namespace cryptonote
   {
   }
   //---------------------------------------------------------------------------
-  bool checkpoints::add_checkpoint(uint64_t height, const std::string& hash_str)
+  bool checkpoints::add_checkpoint(uint64_t height, const std::string& hash_str, bool is_long_hash)
   {
     crypto::hash h = null_hash;
     bool r = epee::string_tools::parse_tpod_from_hex_string(hash_str, h);
     CHECK_AND_ASSERT_MES(r, false, "Failed to parse checkpoint hash string into binary representation!");
 
-    // return false if adding at a height we already have AND the hash is different
-    if (m_points.count(height))
+    if (!is_long_hash)
     {
-      CHECK_AND_ASSERT_MES(h == m_points[height], false, "Checkpoint at given height already exists, and hash for new checkpoint was different!");
+      // return false if adding at a height we already have AND the hash is different
+      if (m_points.count(height))
+      {
+        CHECK_AND_ASSERT_MES(h == m_points[height], false, "Checkpoint at given height already exists, and hash for new checkpoint was different!");
+      }
+      m_points[height] = h;
+      return true;
     }
-    m_points[height] = h;
-    return true;
+    else
+    {
+      // return false if adding at a height we already have AND the hash is different
+      if (m_points_long.count(height))
+      {
+        CHECK_AND_ASSERT_MES(h == m_points_long[height], false, "Checkpoint at given height already exists, and hash for new checkpoint was different!");
+      }
+      m_points_long[height] = h;
+      return true;
+    }
+    return true;  // can't ever get here, but compiler might complain
   }
   //---------------------------------------------------------------------------
   bool checkpoints::is_in_checkpoint_zone(uint64_t height) const
   {
-    return !m_points.empty() && (height <= (--m_points.end())->first);
+    return !m_points.empty() && ((height <= (--m_points.end())->first) || (height <= (--m_points_long.end())->first));
   }
   //---------------------------------------------------------------------------
   bool checkpoints::check_block(uint64_t height, const crypto::hash& h, bool& is_a_checkpoint) const
@@ -78,10 +94,34 @@ namespace cryptonote
     }
   }
   //---------------------------------------------------------------------------
+  bool checkpoints::check_block_long(uint64_t height, const crypto::hash& h, bool& is_a_checkpoint) const
+  {
+    auto it = m_points_long.find(height);
+    is_a_checkpoint = it != m_points.end();
+    if(!is_a_checkpoint)
+      return true;
+
+    if(it->second == h)
+    {
+      LOG_PRINT_GREEN("CHECKPOINT PASSED FOR HEIGHT " << height << " " << h, LOG_LEVEL_0);
+      return true;
+    }else
+    {
+      LOG_ERROR("CHECKPOINT FAILED FOR HEIGHT " << height << ". EXPECTED HASH: " << it->second << ", FETCHED HASH: " << h);
+      return false;
+    }
+  }
+  //---------------------------------------------------------------------------
   bool checkpoints::check_block(uint64_t height, const crypto::hash& h) const
   {
     bool ignored;
     return check_block(height, h, ignored);
+  }
+  //---------------------------------------------------------------------------
+  bool checkpoints::check_block_long(uint64_t height, const crypto::hash& h) const
+  {
+    bool ignored;
+    return check_block_long(height, h, ignored);
   }
   //---------------------------------------------------------------------------
   bool checkpoints::is_alternative_block_allowed(uint64_t blockchain_height, uint64_t block_height) const
@@ -90,12 +130,27 @@ namespace cryptonote
       return false;
 
     auto it = m_points.upper_bound(blockchain_height);
+    auto it_long = m_points_long.upper_bound(blockchain_height);
     // Is blockchain_height before the first checkpoint?
-    if (it == m_points.begin())
+    if (it_long == m_points_long.begin() && it == m_points.begin())
+    {
       return true;
+    }
+    else if (it_long == m_points_long.begin())
+    {
+      --it;
+      return it->first < block_height;
+    }
+    else if (it == m_points.begin())
+    {
+      --it_long;
+      return it_long->first < block_height;
+    }
 
     --it;
-    uint64_t checkpoint_height = it->first;
+    --it_long;
+
+    uint64_t checkpoint_height = std::max(it->first, it_long->first);
     return checkpoint_height < block_height;
   }
   //---------------------------------------------------------------------------
@@ -105,14 +160,23 @@ namespace cryptonote
         std::max_element( m_points.begin(), m_points.end(),
                          ( boost::bind(&std::map< uint64_t, crypto::hash >::value_type::first, _1) < 
                            boost::bind(&std::map< uint64_t, crypto::hash >::value_type::first, _2 ) ) );
-    return highest->first;
+    std::map< uint64_t, crypto::hash >::const_iterator highest_long = 
+        std::max_element( m_points_long.begin(), m_points_long.end(),
+                         ( boost::bind(&std::map< uint64_t, crypto::hash >::value_type::first, _1) < 
+                           boost::bind(&std::map< uint64_t, crypto::hash >::value_type::first, _2 ) ) );
+    return (highest->first > highest_long->first) ? highest->first : highest_long->first;
   }
   //---------------------------------------------------------------------------
   const std::map<uint64_t, crypto::hash>& checkpoints::get_points()
   {
     return m_points;
   }
-
+  //---------------------------------------------------------------------------
+  const std::map<uint64_t, crypto::hash>& checkpoints::get_points_long()
+  {
+    return m_points_long;
+  }
+  //---------------------------------------------------------------------------
   bool checkpoints::check_for_conflicts(checkpoints& other)
   {
     for (auto& pt : other.get_points())
@@ -120,6 +184,13 @@ namespace cryptonote
       if (m_points.count(pt.first))
       {
         CHECK_AND_ASSERT_MES(pt.second == m_points[pt.first], false, "Checkpoint at given height already exists, and hash for new checkpoint was different!");
+      }
+    }
+    for (auto& pt : other.get_points_long())
+    {
+      if (m_points_long.count(pt.first))
+      {
+        CHECK_AND_ASSERT_MES(pt.second == m_points_long[pt.first], false, "Longhash checkpoint at given height already exists, and hash for new checkpoint was different!");
       }
     }
     return true;
