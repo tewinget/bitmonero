@@ -90,14 +90,14 @@ namespace cryptonote
     bool res = true;
     if ((time(NULL) - m_last_dns_checkpoints_update >= 3600) && !m_is_testnet)
     {
-      res = m_blockchain_storage.update_checkpoints(m_checkpoints_path, true);
       m_last_dns_checkpoints_update = time(NULL);
       m_last_json_checkpoints_update = time(NULL);
+      res = m_blockchain_storage.update_checkpoints(m_checkpoints_path, true);
     }
     else if (time(NULL) - m_last_json_checkpoints_update >= 600)
     {
-      res = m_blockchain_storage.update_checkpoints(m_checkpoints_path, false);
       m_last_json_checkpoints_update = time(NULL);
+      res = m_blockchain_storage.update_checkpoints(m_checkpoints_path, false);
     }
 
     // if anything fishy happened getting new checkpoints, bring down the house
