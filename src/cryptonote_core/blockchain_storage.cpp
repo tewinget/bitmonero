@@ -1784,6 +1784,7 @@ bool blockchain_storage::add_new_block(const block& bl_, block_verification_cont
 //------------------------------------------------------------------
 void blockchain_storage::check_against_checkpoints(checkpoints& points, bool enforce)
 {
+  CRITICAL_REGION_LOCAL(m_blockchain_lock);
   const auto& pts = points.get_points();
 
   for (const auto& pt : pts)
@@ -1816,6 +1817,7 @@ void blockchain_storage::check_against_checkpoints(checkpoints& points, bool enf
 // with an existing checkpoint.
 bool blockchain_storage::update_checkpoints(const std::string& file_path, bool check_dns)
 {
+  CRITICAL_REGION_LOCAL(m_blockchain_lock);
   if (!cryptonote::load_checkpoints_from_json(m_checkpoints, file_path))
   {
     return false;
