@@ -88,7 +88,7 @@ namespace cryptonote
   bool core::update_checkpoints()
   {
     bool res = true;
-    if (time(NULL) - m_last_dns_checkpoints_update >= 3600)
+    if ((time(NULL) - m_last_dns_checkpoints_update >= 3600) && !m_is_testnet)
     {
       res = m_blockchain_storage.update_checkpoints(m_checkpoints_path, true);
       m_last_dns_checkpoints_update = time(NULL);
@@ -156,6 +156,7 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   bool core::init(const boost::program_options::variables_map& vm, bool testnet)
   {
+    m_is_testnet = testnet;
     bool r = handle_command_line(vm, testnet);
 
     r = m_mempool.init(m_config_folder);
