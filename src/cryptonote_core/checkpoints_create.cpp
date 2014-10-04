@@ -111,6 +111,22 @@ bool load_checkpoints_from_json(cryptonote::checkpoints& checkpoints, std::strin
   return true;
 }
 
+bool compare_dns_txt_records(const std::vector<std::string>& a, const std::vector<std::string>& b)
+{
+  if (a.size() != b.size())
+  {
+    return false;
+  }
+  for (size_t i = 0; i < a.size(); i++)
+  {
+    if (a[i] != b[i])
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool load_checkpoints_from_dns(cryptonote::checkpoints& checkpoints)
 {
   // All four MoneroPulse domains have DNSSEC on and valid
@@ -120,66 +136,72 @@ bool load_checkpoints_from_dns(cryptonote::checkpoints& checkpoints)
 						   , "checkpoints.moneropulse.co"
   };
   bool avail, valid;
-  std::vector<std::string> records;
+  std::vector<std::vector<std::string>> records;
 
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_int_distribution<int> dis(0, dns_urls.size() - 1);
-  int first_index = dis(gen);
+  size_t good_index = 0;
+  bool good_record = false;
 
-  int cur_index = first_index;
-  do
+  for (auto& url : dns_urls)
   {
-    records = tools::DNSResolver::instance().get_txt_record(dns_urls[cur_index], avail, valid);
-    if (records.size() == 0 || (avail && !valid))
+    tools::DNSResolver resolver;
+
+    auto record = resolver.get_txt_record(url, avail, valid);
+
+    // TODO: once DNSSEC is working, change this to reflect that
+    if (record.size() == 0 || (avail && !valid))
     {
-      cur_index++;
-      if (cur_index == dns_urls.size())
-      {
-	cur_index = 0;
-      }
       continue;
     }
-    break;
-  } while (cur_index != first_index);
+    records.push_back(record);
 
-  if (records.size() == 0)
-  {
-    LOG_PRINT_L1("Fetching MoneroPulse checkpoints failed, no TXT records available.");
-    return true;
-  }
-
-  if (avail && !valid)
-  {
-    LOG_PRINT_L0("WARNING: MoneroPulse failed DNSSEC validation and/or returned no records");
-    return true;
-  }
-
-  for (auto& record : records)
-  {
-    auto pos = record.find(":");
-    if (pos != std::string::npos)
+    if (records.size() > 1)
     {
-      uint64_t height;
-      crypto::hash hash;
-
-      // parse the first part as uint64_t,
-      // if this fails move on to the next record
-      std::stringstream ss(record.substr(0, pos));
-      if (!(ss >> height))
+      for (size_t i = 0; i < (records.size() - 1); i++)
       {
-	continue;
+	for (size_t j = i + 1; j < records.size(); j++)
+	{
+	  if (compare_dns_txt_records(records[i], records[j]))
+	  {
+	    good_index = i;
+	    good_record = true;
+	    break;
+	  }
+	}
+	if (good_record) break;
       }
+    }
 
-      // parse the second part as crypto::hash,
-      // if this fails move on to the next record
-      std::string hashStr = record.substr(pos + 1);
-      if (!epee::string_tools::parse_tpod_from_hex_string(hashStr, hash))
+    if (good_record) break;
+  }
+
+  if (good_record)
+  {
+    for (auto& record : records[good_index])
+    {
+      auto pos = record.find(":");
+      if (pos != std::string::npos)
       {
-	continue;
-      }
+	uint64_t height;
+	crypto::hash hash;
 
-      ADD_CHECKPOINT(height, hashStr);
+	// parse the first part as uint64_t,
+	// if this fails move on to the next record
+	std::stringstream ss(record.substr(0, pos));
+	if (!(ss >> height))
+	{
+	  continue;
+	}
+
+	// parse the second part as crypto::hash,
+	// if this fails move on to the next record
+	std::string hashStr = record.substr(pos + 1);
+	if (!epee::string_tools::parse_tpod_from_hex_string(hashStr, hash))
+	{
+	  continue;
+	}
+
+	ADD_CHECKPOINT(height, hashStr);
+      }
     }
   }
   return true;
