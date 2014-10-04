@@ -28,10 +28,22 @@
 
 #include <iostream>
 #include <vector>
+#include <functional>
 
 #include "gtest/gtest.h"
 
 #include "common/dns_utils.h"
+
+class DNSAsyncTest4 : public ::testing::Test
+{
+protected:
+  void set_result(const std::vector<std::string>& res)
+  {
+    m_result = res;
+  }
+
+  std::vector<std::string> m_result;
+};
 
 TEST(DNSResolver, IPv4Success)
 {
@@ -66,6 +78,29 @@ TEST(DNSResolver, IPv4Failure)
   ips = tools::DNSResolver::instance().get_ipv4("example.invalid", avail, valid);
 
   ASSERT_EQ(0, ips.size());
+}
+
+TEST_F(DNSAsyncTest4, IPv4Async)
+{
+  tools::DNSResolver resolver;
+
+  bool avail, valid;
+
+  volatile bool done = false;
+
+  tools::DNSCallback cb1 = [](const std::vector<std::string>& v){};
+
+  // would do ASSERT_EQ(false, expr) but that's bugged with gcc 4.8+ apparently
+  ASSERT_TRUE(false == resolver.get_ipv4_async("example.invalid", cb1, avail, valid));
+
+  tools::DNSCallback cb2 = [&](const std::vector<std::string>& v){ this->set_result(v); done = true; };
+
+  // would do ASSERT_EQ(false, expr) but that's bugged with gcc 4.8+ apparently
+  ASSERT_TRUE(true == resolver.get_ipv4_async("example.com", cb2, avail, valid));
+
+  ASSERT_EQ(1, m_result.size());
+
+  ASSERT_STREQ("93.184.216.119", m_result[0].c_str());
 }
 
 TEST(DNSResolver, IPv6Success)

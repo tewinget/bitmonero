@@ -28,6 +28,7 @@
 
 #include <vector>
 #include <string>
+#include <functional>
 
 namespace tools
 {
@@ -39,6 +40,8 @@ const static int DNS_TYPE_TXT  = 16;
 const static int DNS_TYPE_AAAA = 8;
 
 struct DNSResolverData;
+
+typedef std::function<void(std::vector<std::string>&)> DNSCallback;
 
 /**
  * @brief Provides high-level access to DNS resolution
@@ -78,6 +81,23 @@ public:
   std::vector<std::string> get_ipv4(const std::string& url, bool& dnssec_available, bool& dnssec_valid);
 
   /**
+   * @brief gets ipv4 addresses from DNS query of a URL, async version
+   *
+   * returns true of the query can be completed as requested, otherwise false
+   * NOTE: as this is asynchronous, the caller should maintain his own instance
+   * of DNSResolver.
+   *
+   * @param url A string containing a URL to query for
+   *
+   * @param cb_func A reference to a function to call after the query completes
+   *
+   * @param dnssec_available 
+   *
+   * @return vector of strings containing ipv4 addresses
+   */
+  bool get_ipv4_async(const std::string& url, DNSCallback& cb_func, bool& dnssec_available, bool& dnssec_valid);
+
+  /**
    * @brief gets ipv6 addresses from DNS query
    *
    * returns a vector of all IPv6 "A" records for given URL.
@@ -97,7 +117,6 @@ public:
    *
    * @return A vector of strings containing a TXT record; or an empty vector
    */
-  // TODO: modify this to accomodate DNSSEC
    std::vector<std::string> get_txt_record(const std::string& url, bool& dnssec_available, bool& dnssec_valid);
 
   /**
@@ -116,7 +135,7 @@ private:
    *
    * @return true if it looks enough like a URL, false if not
    */
-  bool check_address_syntax(const std::string& addr);
+  static bool check_address_syntax(const std::string& addr);
 
   DNSResolverData *m_data;
 }; // class DNSResolver

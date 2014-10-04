@@ -154,6 +154,11 @@ std::vector<std::string> DNSResolver::get_ipv4(const std::string& url, bool& dns
   return addresses;
 }
 
+bool DNSResolver::get_ipv4_async(const std::string& url, DNSCallback& cb_func, bool& dnssec_available, bool& dnssec_valid)
+{
+  return false;
+}
+
 std::vector<std::string> DNSResolver::get_ipv6(const std::string& url, bool& dnssec_available, bool& dnssec_valid)
 {
   std::vector<std::string> addresses;
