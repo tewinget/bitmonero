@@ -31,6 +31,7 @@
 #pragma once
 
 #include <ctime>
+#include <atomic>
 
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/variables_map.hpp>
@@ -167,6 +168,7 @@ namespace cryptonote
      time_t m_last_dns_checkpoints_update;
      time_t m_last_json_checkpoints_update;
      bool m_is_testnet;
+     std::atomic_flag m_checkpoints_updating;
    };
 }
 

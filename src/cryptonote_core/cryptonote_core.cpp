@@ -32,6 +32,7 @@
 using namespace epee;
 
 #include <boost/foreach.hpp>
+#include <boost/thread/thread.hpp>
 #include <unordered_set>
 #include "cryptonote_core.h"
 #include "common/command_line.h"
@@ -42,6 +43,7 @@ using namespace epee;
 #include "cryptonote_format_utils.h"
 #include "misc_language.h"
 #include <csignal>
+#include <functional>
 
 DISABLE_VS_WARNINGS(4355)
 
@@ -58,7 +60,9 @@ namespace cryptonote
               m_target_blockchain_height(0),
               m_checkpoints_path(""),
               m_last_dns_checkpoints_update(0),
-              m_last_json_checkpoints_update(0)
+              m_last_json_checkpoints_update(0),
+              m_is_testnet(false),
+              m_checkpoints_updating(ATOMIC_FLAG_INIT)
   {
     set_cryptonote_protocol(pprotocol);
   }
@@ -87,25 +91,38 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   bool core::update_checkpoints()
   {
-    bool res = true;
+    // if already doing an update (because threads), just return out.
+    if (m_checkpoints_updating.test_and_set()) return true;
+
     if ((time(NULL) - m_last_dns_checkpoints_update >= 3600) && !m_is_testnet)
     {
       m_last_dns_checkpoints_update = time(NULL);
       m_last_json_checkpoints_update = time(NULL);
-      res = m_blockchain_storage.update_checkpoints(m_checkpoints_path, true);
+      boost::thread t([&]
+      {
+        if (!m_blockchain_storage.update_checkpoints(m_checkpoints_path, true))
+        {
+          m_checkpoints_updating.clear();
+          graceful_exit();
+        }
+        else m_checkpoints_updating.clear();
+      });
     }
     else if (time(NULL) - m_last_json_checkpoints_update >= 600)
     {
       m_last_json_checkpoints_update = time(NULL);
-      res = m_blockchain_storage.update_checkpoints(m_checkpoints_path, false);
+      boost::thread t([&]
+      {
+        if (!m_blockchain_storage.update_checkpoints(m_checkpoints_path, true))
+        {
+          m_checkpoints_updating.clear();
+          graceful_exit();
+        }
+        else m_checkpoints_updating.clear();
+      });
     }
 
-    // if anything fishy happened getting new checkpoints, bring down the house
-    if (!res)
-    {
-      graceful_exit();
-    }
-    return res;
+    return true;
   }
   //-----------------------------------------------------------------------------------
   void core::init_options(boost::program_options::options_description& /*desc*/)
@@ -188,6 +205,10 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
     bool core::deinit()
   {
+    // make sure there's not a thread actively mucking about with
+    // the blockchain before it tries to deinit...
+    while (m_checkpoints_updating.test_and_set()) {}
+
     m_miner.stop();
     m_mempool.deinit();
     m_blockchain_storage.deinit();
