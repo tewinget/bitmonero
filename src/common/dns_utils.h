@@ -29,6 +29,7 @@
 #include <vector>
 #include <string>
 #include <functional>
+#include <atomic>
 
 namespace tools
 {
@@ -41,7 +42,7 @@ const static int DNS_TYPE_AAAA = 8;
 
 struct DNSResolverData;
 
-typedef std::function<void(std::vector<std::string>&)> DNSCallback;
+typedef std::function<void(std::vector<std::string>&, bool&, bool&)> DNSCallback;
 
 /**
  * @brief Provides high-level access to DNS resolution
@@ -98,6 +99,14 @@ public:
   bool get_ipv4_async(const std::string& url, DNSCallback& cb_func, bool& dnssec_available, bool& dnssec_valid);
 
   /**
+   * @brief sends the async ipv4 query response to the caller
+   *
+   * @param res result of query
+   * @param success whether or not the query was successful
+   */
+  void send_ipv4_async_reply(const std::vector<std::string>& res, bool success);
+
+  /**
    * @brief gets ipv6 addresses from DNS query
    *
    * returns a vector of all IPv6 "A" records for given URL.
@@ -138,6 +147,11 @@ private:
   static bool check_address_syntax(const std::string& addr);
 
   DNSResolverData *m_data;
+
+  atomic_flag async_in_progress;
+  int async_id;
+  DNSCallback m_cb;
+
 }; // class DNSResolver
 
 }  // namespace tools

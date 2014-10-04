@@ -98,6 +98,13 @@ TEST_F(DNSAsyncTest4, IPv4Async)
   // would do ASSERT_EQ(false, expr) but that's bugged with gcc 4.8+ apparently
   ASSERT_TRUE(true == resolver.get_ipv4_async("example.com", cb2, avail, valid));
 
+  // would do ASSERT_EQ(false, expr) but that's bugged with gcc 4.8+ apparently
+  // Make sure this second call fails, unless the DNS query is insanely fast somehow...
+  ASSERT_TRUE(false == resolver.get_ipv4_async("example.com", cb2, avail, valid));
+
+  // wait for done flag
+  while (!done) {}
+
   ASSERT_EQ(1, m_result.size());
 
   ASSERT_STREQ("93.184.216.119", m_result[0].c_str());

@@ -98,7 +98,7 @@ struct DNSResolverData
   ub_ctx* m_ub_context;
 };
 
-DNSResolver::DNSResolver() : m_data(new DNSResolverData())
+DNSResolver::DNSResolver() : m_data(new DNSResolverData()), async_in_progress(ATOMIC_FLAG_INIT)
 {
   // init libunbound context
   m_data->m_ub_context = ub_ctx_create();
@@ -112,6 +112,17 @@ DNSResolver::DNSResolver() : m_data(new DNSResolverData())
 
 DNSResolver::~DNSResolver()
 {
+  // attempt to cancel any async query in progress
+  if (async_in_progress.test_and_set())
+  {
+    // if cancel fails, result is being delivered,
+    // spin and wait for async_in_progress to clear
+    if (ub_cancel(async_id))
+    {
+      while (async_in_progress.test_and_set()) {}
+    }
+  }
+  
   if (m_data)
   {
     if (m_data->m_ub_context != NULL)
@@ -119,6 +130,20 @@ DNSResolver::~DNSResolver()
       ub_ctx_delete(m_data->m_ub_context);
     }
     delete m_data;
+  }
+}
+
+void parse_unbound_ipv4_lookup(const ub_result_ptr& result, std::vector<std::string>& records, bool& dnssec_avail, bool& dnssec_valid)
+{
+  dnssec_avail = false;
+  dnssec_valid = false;
+
+  if (result.ptr->havedata)
+  {
+    for (size_t i=0; result.ptr->data[i] != NULL; i++)
+    {
+      records.push_back(ipv4_to_string(result.ptr->data[i]));
+    }
   }
 }
 
@@ -142,13 +167,7 @@ std::vector<std::string> DNSResolver::get_ipv4(const std::string& url, bool& dns
   // call DNS resolver, blocking.  if return value not zero, something went wrong
   if (!ub_resolve(m_data->m_ub_context, urlC, DNS_TYPE_A, DNS_CLASS_IN, &(result.ptr)))
   {
-    if (result.ptr->havedata)
-    {
-      for (size_t i=0; result.ptr->data[i] != NULL; i++)
-      {
-        addresses.push_back(ipv4_to_string(result.ptr->data[i]));
-      }
-    }
+    parse_unbound_ipv4_lookup(result, addresses, dnssec_available, dnssec_valid);
   }
 
   return addresses;
@@ -156,7 +175,39 @@ std::vector<std::string> DNSResolver::get_ipv4(const std::string& url, bool& dns
 
 bool DNSResolver::get_ipv4_async(const std::string& url, DNSCallback& cb_func, bool& dnssec_available, bool& dnssec_valid)
 {
-  return false;
+  if (async_in_progress.test_and_set())
+  {
+    return false;
+  }
+
+  async_in_progress.clear();
+}
+
+/**
+ * @brief handles result from async ipv4 dns request
+ *
+ * @param data pointer to DNSResolver class that initiated the request
+ * @param err if not zero, async dns query ran into trouble
+ * @param result pointer to resultant ub_result struct
+ */
+void handle_async_ipv4_result(void *data, int err, struct ub_result* result)
+{
+  ub_result_ptr r;
+  r.ptr = result;
+
+  std::vector<std::string> records;
+
+  bool success = (err == 0);
+  bool avail, valid;
+  if (success)
+  {
+    parse_unbound_ipv4_lookup(r, records, avail, valid);
+  }
+  
+}
+
+void DNSResolver::send_ipv4_async_reply(const std::vector<std::string>& res, bool avail, bool valid, bool success)
+{
 }
 
 std::vector<std::string> DNSResolver::get_ipv6(const std::string& url, bool& dnssec_available, bool& dnssec_valid)
