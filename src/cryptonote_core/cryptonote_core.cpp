@@ -121,6 +121,10 @@ namespace cryptonote
         else m_checkpoints_updating.clear();
       });
     }
+    else  // if we're not spawning threads that release the lock, we should...
+    {
+      m_checkpoints_updating.clear();
+    }
 
     return true;
   }
