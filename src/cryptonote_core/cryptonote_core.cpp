@@ -113,7 +113,7 @@ namespace cryptonote
       m_last_json_checkpoints_update = time(NULL);
       boost::thread t([&]
       {
-        if (!m_blockchain_storage.update_checkpoints(m_checkpoints_path, true))
+        if (!m_blockchain_storage.update_checkpoints(m_checkpoints_path, false))
         {
           m_checkpoints_updating.clear();
           graceful_exit();
