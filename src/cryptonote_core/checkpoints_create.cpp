@@ -117,12 +117,19 @@ bool compare_dns_txt_records(const std::vector<std::string>& a, const std::vecto
   {
     return false;
   }
-  for (size_t i = 0; i < a.size(); i++)
+
+  for (const auto& record : a)
   {
-    if (a[i] != b[i])
+    bool ok = false;
+    for (const auto& rec2 : b)
     {
-      return false;
+      if (record == rec2)
+      {
+	ok = true;
+	break;
+      }
     }
+    if (!ok) return false;
   }
   return true;
 }
