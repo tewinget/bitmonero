@@ -42,10 +42,8 @@ namespace cryptonote
     checkpoints();
     bool add_checkpoint(uint64_t height, const std::string& hash_str, bool is_long_hash = false);
     bool is_in_checkpoint_zone(uint64_t height) const;
-    bool check_block(uint64_t height, const crypto::hash& h) const;
-    bool check_block(uint64_t height, const crypto::hash& h, bool& is_a_checkpoint) const;
-    bool check_block_long(uint64_t height, const crypto::hash& h) const;
-    bool check_block_long(uint64_t height, const crypto::hash& h, bool& is_a_checkpoint) const;
+    bool check_block(uint64_t height, const crypto::hash& h, bool is_long_hash = false) const;
+    bool check_block(uint64_t height, const crypto::hash& h, bool& is_a_checkpoint, bool is_long_hash = false) const;
     bool is_alternative_block_allowed(uint64_t blockchain_height, uint64_t block_height) const;
     uint64_t get_max_height();
     const std::map<uint64_t, crypto::hash>& get_points();

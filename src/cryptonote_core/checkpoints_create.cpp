@@ -50,8 +50,10 @@ struct t_hashline
 
 struct t_hash_json {
  	std::vector<t_hashline> hashlines;
+ 	std::vector<t_hashline> longhashes;
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(hashlines)
+        KV_SERIALIZE(longhashes)
       END_KV_SERIALIZE_MAP()
 };
 
@@ -76,6 +78,8 @@ bool create_checkpoints(cryptonote::checkpoints& checkpoints)
   ADD_CHECKPOINT(231350, "b5add137199b820e1ea26640e5c3e121fd85faa86a1e39cf7e6cc097bdeb1131");
   ADD_CHECKPOINT(232150, "955de8e6b6508af2c24f7334f97beeea651d78e9ade3ab18fec3763be3201aa8");
 
+  ADD_CHECKPOINT_LONG(202612, "3a8a2b3a29b50fc86ff73dd087ea43c6f0d6b8f936c849194d5c84c737903966");
+
   return true;
 }
 
@@ -94,18 +98,30 @@ bool load_checkpoints_from_json(cryptonote::checkpoints& checkpoints, std::strin
   LOG_PRINT_L1("Hard-coded max checkpoint height is " << prev_max_height);
   t_hash_json hashes;
   epee::serialization::load_t_from_json_file(hashes, json_hashfile_fullpath);
-  for (std::vector<t_hashline>::const_iterator it = hashes.hashlines.begin(); it != hashes.hashlines.end(); )
+
+  // add normal checkpoints
+  for (auto& pt : hashes.hashlines)
   {
-      uint64_t height;
-      height = it->height;
-      if (height <= prev_max_height) {
-	LOG_PRINT_L1("ignoring checkpoint height " << height);
+      if (pt.height <= prev_max_height) {
+	LOG_PRINT_L1("ignoring checkpoint height " << pt.height);
       } else {
-	std::string blockhash = it->hash;
-	LOG_PRINT_L1("Adding checkpoint height " << height << ", hash=" << blockhash);
-	ADD_CHECKPOINT(height, blockhash);
+	LOG_PRINT_L1("Adding checkpoint height " << pt.height << ", hash=" << pt.hash);
+	ADD_CHECKPOINT(pt.height, pt.hash);
       }
-      ++it;
+  }
+
+  // add longhash checkpoints
+  for (auto& pt : hashes.longhashes)
+  {
+    if (pt.height <= prev_max_height)
+    {
+      LOG_PRINT_L1("ignoring checkpoint height " << pt.height);
+    }
+    else
+    {
+      LOG_PRINT_L1("Adding longhash checkpoint height " << pt.height << ", hash=" << pt.hash);
+      ADD_CHECKPOINT_LONG(pt.height, pt.hash);
+    }
   }
 
   return true;

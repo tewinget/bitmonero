@@ -94,10 +94,20 @@ bool blockchain_storage::init(const std::string& config_folder, bool testnet)
 
       // checkpoints
       
+      // TODO: possibly update this to instead do:
+      // check_against_checkpoints(m_checkpoints, true);
+      // which would roll back the blockchain if a checkpoint fails,
+      // rather than just returning false here
+
       // mainchain
       for (size_t height=0; height < m_blocks.size(); ++height) 
       {
-	CHECK_AND_ASSERT_MES((!m_checkpoints.is_in_checkpoint_zone(height)) || m_checkpoints.check_block(height,get_block_hash(m_blocks[height].bl)),false,"checkpoint fail, blockchain.bin invalid");
+	CHECK_AND_ASSERT_MES((!m_checkpoints.is_in_checkpoint_zone(height)) || \
+	    ( \
+	      m_checkpoints.check_block(height,get_block_hash(m_blocks[height].bl), false) && \
+	      m_checkpoints.check_block(height, get_blob_hash(block_to_blob(m_blocks[height].bl)), true) \
+	    ) \
+	    ,false,"checkpoint fail, blockchain.bin invalid");
       }
 
       // check alt chains
@@ -861,9 +871,15 @@ bool blockchain_storage::handle_alternative_block(const block& b, const crypto::
     bei.height = alt_chain.size() ? it_prev->second.height + 1 : it_main_prev->second + 1;
 
     bool is_a_checkpoint;
-    if(!m_checkpoints.check_block(bei.height, id, is_a_checkpoint))
+    if(!m_checkpoints.check_block(bei.height, id, is_a_checkpoint, false))
     {
       LOG_ERROR("CHECKPOINT VALIDATION FAILED");
+      bvc.m_verifivation_failed = true;
+      return false;
+    }
+    if(!m_checkpoints.check_block(bei.height, get_blob_hash(block_to_blob(bei.bl)), true))
+    {
+      LOG_ERROR("LONGHASH CHECKPOINT VALIDATION FAILED");
       bvc.m_verifivation_failed = true;
       return false;
     }
@@ -1625,9 +1641,15 @@ bool blockchain_storage::handle_block_to_main_chain(const block& bl, const crypt
   // is correct.
   if(m_checkpoints.is_in_checkpoint_zone(get_current_blockchain_height()))
   {
-    if(!m_checkpoints.check_block(get_current_blockchain_height(), id))
+    if(!m_checkpoints.check_block(get_current_blockchain_height(), id, false))
     {
       LOG_ERROR("CHECKPOINT VALIDATION FAILED");
+      bvc.m_verifivation_failed = true;
+      return false;
+    }
+    if(!m_checkpoints.check_block(get_current_blockchain_height(), get_blob_hash(block_to_blob(bl)), true))
+    {
+      LOG_ERROR("LONGHASH CHECKPOINT VALIDATION FAILED");
       bvc.m_verifivation_failed = true;
       return false;
     }
@@ -1795,7 +1817,31 @@ void blockchain_storage::check_against_checkpoints(checkpoints& points, bool enf
       continue;
     }
 
-    if (!points.check_block(pt.first, get_block_hash(m_blocks[pt.first].bl)))
+    if (!points.check_block(pt.first, get_block_hash(m_blocks[pt.first].bl), false))
+    {
+      // if asked to enforce checkpoints, roll back to a couple of blocks before the checkpoint
+      if (enforce)
+      {
+	LOG_ERROR("Local blockchain failed to pass a checkpoint, rolling back!");
+	std::list<block> empty;
+	rollback_blockchain_switching(empty, pt.first - 2);
+      }
+      else
+      {
+	LOG_ERROR("WARNING: local blockchain failed to pass a MoneroPulse checkpoint, and you could be on a fork. You should either sync up from scratch, OR download a fresh blockchain bootstrap, OR enable checkpoint enforcing with the --enforce-dns-checkpointing command-line option");
+      }
+    }
+  }
+  const auto& long_pts = points.get_points_long();
+  for (const auto& pt : long_pts)
+  {
+    // if the checkpoint is for a block we don't have yet, move on
+    if (pt.first >= m_blocks.size())
+    {
+      continue;
+    }
+
+    if (!points.check_block(pt.first, get_blob_hash(block_to_blob(m_blocks[pt.first].bl)), true))
     {
       // if asked to enforce checkpoints, roll back to a couple of blocks before the checkpoint
       if (enforce)

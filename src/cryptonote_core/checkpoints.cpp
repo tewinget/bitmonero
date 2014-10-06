@@ -76,52 +76,40 @@ namespace cryptonote
     return !m_points.empty() && ((height <= (--m_points.end())->first) || (height <= (--m_points_long.end())->first));
   }
   //---------------------------------------------------------------------------
-  bool checkpoints::check_block(uint64_t height, const crypto::hash& h, bool& is_a_checkpoint) const
+  bool checkpoints::check_block(uint64_t height, const crypto::hash& h, bool& is_a_checkpoint, bool is_long_hash) const
   {
-    auto it = m_points.find(height);
-    is_a_checkpoint = it != m_points.end();
+    std::map<uint64_t, crypto::hash>::const_iterator it;
+    if (is_long_hash)
+    {
+      it = m_points_long.find(height);
+      is_a_checkpoint = it != m_points_long.end();
+    }
+    else
+    {
+      it = m_points.find(height);
+      is_a_checkpoint = it != m_points.end();
+    }
+
+    std::string hash_type = is_long_hash ? "LONGHASH " : "";
+
     if(!is_a_checkpoint)
       return true;
 
     if(it->second == h)
     {
-      LOG_PRINT_GREEN("CHECKPOINT PASSED FOR HEIGHT " << height << " " << h, LOG_LEVEL_1);
+      LOG_PRINT_GREEN(hash_type << "CHECKPOINT PASSED FOR HEIGHT " << height << " " << h, LOG_LEVEL_1);
       return true;
     }else
     {
-      LOG_ERROR("CHECKPOINT FAILED FOR HEIGHT " << height << ". EXPECTED HASH: " << it->second << ", FETCHED HASH: " << h);
+      LOG_ERROR(hash_type << "CHECKPOINT FAILED FOR HEIGHT " << height << ". EXPECTED HASH: " << it->second << ", FETCHED HASH: " << h);
       return false;
     }
   }
   //---------------------------------------------------------------------------
-  bool checkpoints::check_block_long(uint64_t height, const crypto::hash& h, bool& is_a_checkpoint) const
-  {
-    auto it = m_points_long.find(height);
-    is_a_checkpoint = it != m_points.end();
-    if(!is_a_checkpoint)
-      return true;
-
-    if(it->second == h)
-    {
-      LOG_PRINT_GREEN("CHECKPOINT PASSED FOR HEIGHT " << height << " " << h, LOG_LEVEL_0);
-      return true;
-    }else
-    {
-      LOG_ERROR("CHECKPOINT FAILED FOR HEIGHT " << height << ". EXPECTED HASH: " << it->second << ", FETCHED HASH: " << h);
-      return false;
-    }
-  }
-  //---------------------------------------------------------------------------
-  bool checkpoints::check_block(uint64_t height, const crypto::hash& h) const
+  bool checkpoints::check_block(uint64_t height, const crypto::hash& h, bool is_long_hash) const
   {
     bool ignored;
-    return check_block(height, h, ignored);
-  }
-  //---------------------------------------------------------------------------
-  bool checkpoints::check_block_long(uint64_t height, const crypto::hash& h) const
-  {
-    bool ignored;
-    return check_block_long(height, h, ignored);
+    return check_block(height, h, ignored, is_long_hash);
   }
   //---------------------------------------------------------------------------
   bool checkpoints::is_alternative_block_allowed(uint64_t blockchain_height, uint64_t block_height) const

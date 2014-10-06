@@ -33,7 +33,8 @@
 #include "checkpoints.h"
 #include "misc_log_ex.h"
 
-#define ADD_CHECKPOINT(h, hash)  CHECK_AND_ASSERT(checkpoints.add_checkpoint(h,  hash), false);
+#define ADD_CHECKPOINT(h, hash)  CHECK_AND_ASSERT(checkpoints.add_checkpoint(h,  hash, false), false);
+#define ADD_CHECKPOINT_LONG(h, hash)  CHECK_AND_ASSERT(checkpoints.add_checkpoint(h,  hash, true), false);
 #define JSON_HASH_FILE_NAME "checkpoints.json"
 
 namespace cryptonote
