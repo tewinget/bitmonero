@@ -87,3 +87,21 @@ add_test(
 
 add_custom_target(tests DEPENDS coretests difficulty hash performance_tests core_proxy unit_tests)
 set_property(TARGET gtest gtest_main hash-target-tests tests PROPERTY FOLDER "tests")
+
+set(COMMON_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/../src
+                               ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/epee/include
+                               ${CMAKE_CURRENT_BINARY_DIR}/../version
+                               ${CMAKE_CURRENT_SOURCE_DIR}/../external
+)
+
+target_include_directories(coretests PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(crypto-tests PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(functional_tests PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(performance_tests PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(core_proxy PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(unit_tests PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(difficulty-tests PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(hash-tests PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(net_load_tests_clt PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(net_load_tests_srv PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(hash-target-tests PUBLIC ${COMMON_INCLUDE_DIRECTORIES})

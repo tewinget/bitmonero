@@ -82,8 +82,6 @@ endif()
 # elseif(CMAKE_SYSTEM_NAME MATCHES ".*BSDI.*")
 #   set(BSDI TRUE)
 
-include_directories(src contrib/epee/include external "${CMAKE_BINARY_DIR}/version")
-
 if(APPLE)
   include_directories(SYSTEM /usr/include/malloc)
 endif()
@@ -222,7 +220,7 @@ endif()
 
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 if(MINGW)
-  set(EXTRA_LIBRARIES mswsock;ws2_32;iphlpapi)
+  set(EXTRA_LIBRARIES mswsock;ws2_32;iphlpapi;z)
 elseif(APPLE OR FREEBSD)
   set(EXTRA_LIBRARIES "")
 elseif(NOT MSVC)

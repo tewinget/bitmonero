@@ -94,3 +94,20 @@ add_subdirectory(connectivity_tool)
 add_subdirectory(miner)
 add_subdirectory(simplewallet)
 add_subdirectory(daemon)
+
+set(COMMON_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}
+                               ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/epee/include
+                               ${CMAKE_CURRENT_BINARY_DIR}/../version
+                               ${CMAKE_CURRENT_SOURCE_DIR}/../external
+)
+
+target_include_directories(common PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(crypto PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(cryptonote_core PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(mnemonics PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(rpc PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(wallet PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(connectivity_tool PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(simpleminer PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(simplewallet PUBLIC ${COMMON_INCLUDE_DIRECTORIES})
+target_include_directories(daemon PUBLIC ${COMMON_INCLUDE_DIRECTORIES})

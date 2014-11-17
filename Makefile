@@ -1,8 +1,18 @@
+cmake_platform = 
+
+ifeq ($(strip $(platform)),mingw32)
+       cmake_platform = -D CMAKE_TOOLCHAIN_FILE=./cmake/32-bit-toolchain.cmake
+endif
+ifeq ($(strip $(platform)),mingw64)
+       cmake_platform = -D CMAKE_TOOLCHAIN_FILE=./cmake/64-bit-toolchain.cmake
+endif
+
+
 all: all-release
 
 cmake-debug:
 	mkdir -p build/debug
-	cd build/debug && cmake -D CMAKE_BUILD_TYPE=Debug ../..
+	cd build/debug && cmake $(cmake_platform) -D CMAKE_BUILD_TYPE=Debug ../..
 
 build-debug: cmake-debug
 	cd build/debug && $(MAKE)
@@ -14,7 +24,7 @@ all-debug: build-debug
 
 cmake-release:
 	mkdir -p build/release
-	cd build/release && cmake -D CMAKE_BUILD_TYPE=Release ../..
+	cd build/release && cmake $(cmake_platform) -D CMAKE_BUILD_TYPE=Release ../..
 
 build-release: cmake-release
 	cd build/release && $(MAKE)
