@@ -12,6 +12,8 @@ set (BOOST_INCLUDEDIR /usr/${GCC_PREFIX}/include/boost;/usr/${GCC_PREFIX}/sys-ro
 set (BOOST_LIBRARYDIR /usr/${GCC_PREFIX}/lib;/usr/${GCC_PREFIX}/sys-root/mingw/lib)
 set (BOOST_ROOT /usr/${GCC_PREFIX}/sys-root/mingw)
 
+set (OPENSSL_ROOT_DIR /usr/${GCC_PREFIX};/usr/${GCC_PREFIX}/sys-root/mingw)
+
 set (Boost_USE_STATIC_LIBS ON)
 
 # Ensure cmake doesn't find things in the wrong places
