@@ -92,6 +92,9 @@ namespace cryptonote
     if (!kept_by_block && fee < needed_fee)
     {
       LOG_PRINT_L1("transaction fee is not enough: " << print_money(fee) << ", minumim fee: " << print_money(needed_fee));
+      LOG_PRINT_L1("tx size: " << blob_size << ", fee per kb: " << FEE_PER_KB << ", tx hash: " << epee::string_tools::pod_to_hex(get_transaction_hash(tx)));
+      transaction tx_cpy = tx;
+      LOG_PRINT_L1("tx as json:" << std::endl << cryptonote::obj_to_json_str(tx_cpy));
       tvc.m_verifivation_failed = true;
       return false;
     }
