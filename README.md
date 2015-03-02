@@ -28,6 +28,22 @@ As with many development projects, the repository on Github is considered to be 
 
 Anyone is able to contribute to Monero. If you have a fix or code change, feel free to submit is as a pull request directly to the "development" branch. In cases where the change is relatively small or does not affect other parts of the codebase it may be merged in immediately by any one of the collaborators. On the other hand, if the change is particularly large or complex, it is expected that it will be discussed at length either well in advance of the pull request being submitted, or even directly on the pull request.
 
+## Supporting the Project
+
+Monero development can be supported directly through donations.
+
+Both Monero and Bitcoin donations can be made to donate.monero.cc if using a client that supports the [OpenAlias](https://openalias.org) standard
+
+The Monero donation address is: 46BeWrHpwXmHDpDEUmZBWZfoQpdc6HaERCNmx1pEYL2rAcuwufPN9rXHHtyUA4QVy66qeFQkn6sfK8aHYjA3jk3o1Bv16em (viewkey: e422831985c9205238ef84daf6805526c14d96fd7b059fe68c7ab98e495e5703)
+
+The Bitcoin donation address is: 1FhnVJi2V1k4MqXm2nHoEbY5LV7FPai7bb
+
+Core development funding and/or some supporting services are also graciously provided by sponsors:
+
+[![MyMonero](http://i.imgur.com/xdp7mNG.png?)](https://mymonero.com) [![Dome9](http://i.imgur.com/THVVafx.png)](http://dome9.com)
+
+There are also several mining pools that kindly donate a portion of their fees, [a list of them can be found on our Bitcointalk post](https://bitcointalk.org/index.php?topic=583449.0).
+
 ## License
 
 Copyright (c) 2014-2015, The Monero Project
@@ -56,14 +72,14 @@ Static Build Additional Dependencies: ldns 1.6.17 or later, expat 1.1 or later, 
 **Basic Process:**
 
 * To build, change to the root of the source code directory, and run `make`.
-* The resulting executables can be found in `build/release/src` or `build/debug/src`, depending on what you're building.
+* The resulting executables can be found in `build/release/bin` or `build/debug/bin`, depending on what you're building.
 
 **Advanced options:**
 
 * Parallel build: run `make -j<number of threads>` instead of `make`.
 * Statically linked release build: run `make release-static`.
-* Debug build: run `make build-debug`.
-* Test suite: run `make test-release` to run tests in addition to building. Running `make test-debug` will do the same to the debug version.
+* Debug build: run `make debug`.
+* Test suite: run `make release-test` to run tests in addition to building. Running `make debug-test` will do the same to the debug version.
 * Building with Clang: it may be possible to use Clang instead of GCC, but this may not work everywhere. To build, run `export CC=clang CXX=clang++` before running `make`.
 
 ### On OS X:
@@ -111,7 +127,7 @@ cmake -G "MSYS Makefiles" -D CMAKE_BUILD_TYPE=Release -D CMAKE_TOOLCHAIN_FILE=..
 cmake -G "MSYS Makefiles" -D CMAKE_BUILD_TYPE=Release -D CMAKE_TOOLCHAIN_FILE=../cmake/32-bit-toolchain.cmake -D MSYS2_FOLDER=c:/msys32 ..
 ```
 * You can now run `make` to have it build
-* The resulting executables can be found in `build/release/src` or `build/debug/src`, depending on what you're building.
+* The resulting executables can be found in `build/release/bin` or `build/debug/bin`, depending on what you're building.
 
 If you installed MSYS2 in a folder other than c:/msys64, make the appropriate substitution above.
 
@@ -119,8 +135,8 @@ If you installed MSYS2 in a folder other than c:/msys64, make the appropriate su
 
 * Parallel build: run `make -j<number of threads>` instead of `make`.
 * Statically linked release build: run `make release-static`.
-* Debug build: run `make build-debug`.
-* Test suite: run `make test-release` to run tests in addition to building. Running `make test-debug` will do the same to the debug version.
+* Debug build: run `make debug`.
+* Test suite: run `make release-test` to run tests in addition to building. Running `make debug-test` will do the same to the debug version.
 
 ### On FreeBSD:
 
