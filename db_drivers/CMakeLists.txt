@@ -26,24 +26,10 @@
 # STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-find_package(LMDB)
+# We aren't even going to check the system for an installed LMDB driver, as it is too
+# critical a consensus component to rely on dynamically linked libraries
+message(STATUS "Using ${ARCH_WIDTH}-bit LMDB from source tree")
+add_subdirectory(liblmdb${ARCH_WIDTH})
+set(LMDB_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/liblmdb${ARCH_WIDTH}" PARENT_SCOPE)
 
-if(NOT LMDB_LIBRARIES OR STATIC)
-  add_subdirectory(liblmdb)
-  message(STATUS "lmdb not found, building from src tree")
-
-  set(LMDB_STATIC true PARENT_SCOPE)
-  set(LMDB_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/liblmdb" PARENT_SCOPE)
-  set(LMDB_LIBRARY "lmdb" PARENT_SCOPE)
-else()
-  message(STATUS "Found liblmdb include (lmdb.h) in ${LMDB_INCLUDE_DIR}")
-  if(LMDB_LIBRARIES)
-    message(STATUS "Found liblmdb shared library")
-    set(LMDB_STATIC false PARENT_SCOPE)
-    set(LMDB_INCLUDE ${LMDB_INCLUDE_DIR} PARENT_SCOPE)
-    set(LMDB_LIBRARY ${LMDB_LIBRARIES} PARENT_SCOPE)
-    set(LMDB_LIBRARY_DIRS "" PARENT_SCOPE)
-  else()
-    die("Found liblmdb includes, but could not find liblmdb library. Please make sure you have installed liblmdb or liblmdb-dev or the equivalent")
-  endif()
-endif()
+set(LMDB_LIBRARY "lmdb" PARENT_SCOPE)
