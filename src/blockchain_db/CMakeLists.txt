@@ -30,6 +30,7 @@ set(blockchain_db_sources
   blockchain_db.cpp
   lmdb/db_lmdb.cpp
   berkeleydb/db_bdb.cpp
+  in_memory/db_ram.cpp
   )
 
 set(blockchain_db_headers)
@@ -38,6 +39,7 @@ set(blockchain_db_private_headers
   blockchain_db.h
   lmdb/db_lmdb.h
   berkeleydb/db_bdb.h
+  in_memory/db_ram.h
   )
 
 bitmonero_private_headers(blockchain_db
