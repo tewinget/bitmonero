@@ -345,6 +345,7 @@ namespace cryptonote
   {
     transaction tx;
     uint64_t m_block_height;
+    size_t m_blob_size;  // defunct but kept for legacy deserialization
     std::vector<uint64_t> m_amount_output_indices;
   };
 
@@ -356,6 +357,25 @@ namespace cryptonote
     difficulty_type cumulative_difficulty;
     uint64_t already_generated_coins;
   };
+
+  template<class archive_t>
+  void serialize(archive_t & ar, transaction_chain_entry& te, const unsigned int version)
+  {
+    ar & te.tx;
+    ar & te.m_block_height;
+    ar & te.m_blob_size;
+    ar & te.m_amount_output_indices;
+  }
+
+  template<class archive_t>
+  void serialize(archive_t & ar, block_extended_info& ei, const unsigned int version)
+  {
+    ar & ei.bl;
+    ar & ei.height;
+    ar & ei.cumulative_difficulty;
+    ar & ei.block_cumulative_size;
+    ar & ei.already_generated_coins;
+  }
 
 }
 

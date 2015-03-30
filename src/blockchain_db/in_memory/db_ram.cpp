@@ -27,6 +27,20 @@
 
 #include "db_ram.h"
 
+#include "include_base_utils.h"
+#include "common/boost_serialization_helper.h"
+#include "common/util.h"
+#include "file_io_utils.h"
+#include "cryptonote_core/cryptonote_boost_serialization.h"
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/serialization/serialization.hpp>
+#include <boost/serialization/version.hpp>
+#include <boost/serialization/list.hpp>
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/global_fun.hpp>
+#include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index/member.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
 #include <memory>  // std::unique_ptr
@@ -79,7 +93,7 @@ void BlockchainRAM::add_block( const block& blk
 
   if (m_height > 0)
   {
-    if (m_block_hashes[m_height - 1] != blk.prev_id)
+    if (top_block_hash() != blk.prev_id)
     {
       throw0(BLOCK_PARENT_DNE("Top block is not new block's parent"));
     }
@@ -90,7 +104,6 @@ void BlockchainRAM::add_block( const block& blk
   m_blocks.push_back(bei);
 
   m_block_heights[block_hash] = m_height;
-  m_block_hashes.push_back(block_hash);
 }
 
 void BlockchainRAM::remove_block()
@@ -98,17 +111,16 @@ void BlockchainRAM::remove_block()
   LOG_PRINT_L3("BlockchainRAM::" << __func__);
   check_open();
 
-  if (m_blocks.size() == 0 || m_block_hashes.size() == 0)
+  if (m_blocks.size() == 0)
   {
     throw1(BLOCK_DNE("Attempting to remove block that's not in the db"));
   }
-  m_blocks.pop_back();
 
-  if (m_block_heights.erase(m_block_hashes.back()) != 1)
+  if (m_block_heights.erase(top_block_hash()) != 1)
   {
     throw1(DB_ERROR("Removing block -- block hash->height mapping not present"));
   }
-  m_block_hashes.pop_back();
+  m_blocks.pop_back();
 }
 
 void BlockchainRAM::add_transaction_data(const crypto::hash& blk_hash, const transaction& tx, const crypto::hash& tx_hash)
@@ -254,6 +266,36 @@ void BlockchainRAM::open(const std::string& filename, const int db_flags)
 
   m_folder = filename;
 
+  boost::filesystem::path p(filename);
+  if (boost::filesystem::exists(p))
+  {
+    if (!boost::filesystem::is_directory(p))
+      throw0(DB_OPEN_FAILURE("The database needs a directory path, but a file was passed"));
+  }
+  else
+  {
+    if (!boost::filesystem::create_directory(p))
+      throw0(DB_OPEN_FAILURE(std::string("Failed to create directory ").append(filename).c_str()));
+  }
+
+  p /= CRYPTONOTE_BLOCKCHAINDATA_FILENAME;
+  if (boost::filesystem::exists(p))
+  {
+    if (tools::unserialize_obj_from_file(*this, p.string()))
+    {
+      m_height = m_blocks.size();
+      LOG_PRINT_L0("Successfully loaded blockchain from file: " << p.string());
+    }
+    else
+    {
+      throw0(DB_OPEN_FAILURE(std::string("File at: ").append(p.string()).append(" failed to deserialize as a blockchain.").c_str()));
+    }
+  }
+  else
+  {
+    LOG_PRINT_L0("No blockchain file found, one will be created on first sync.");
+  }
+
   m_open = true;
 }
 
@@ -278,6 +320,28 @@ void BlockchainRAM::sync()
 {
   LOG_PRINT_L3("BlockchainRAM::" << __func__);
   check_open();
+
+  boost::filesystem::path tmp(m_folder);
+
+  tmp /= CRYPTONOTE_BLOCKCHAINDATA_TEMP_FILENAME;
+  std::remove(tmp.string().c_str());  // make sure our temp file doesn't already exist
+
+  if(!tools::serialize_obj_to_file(*this, tmp.string()))
+  {
+    throw0(DB_SYNC_FAILURE(std::string("Failed to save blockchain to temp file: ").append(tmp.string()).c_str()));
+  }
+
+  boost::filesystem::path fname(m_folder);
+  fname /= CRYPTONOTE_BLOCKCHAINDATA_FILENAME;
+
+  std::error_code ec = tools::replace_file(tmp.string(), fname.string());
+
+  if (ec)
+  {
+    throw0(DB_SYNC_FAILURE(std::string("Failed to rename blockchain data file ").append(tmp.string()).append(" to ").append(fname.string()).append(": ").append(ec.message()).append(":").append(boost::lexical_cast<std::string>(ec.value())).c_str()));
+  }
+
+  LOG_PRINT_L0("Blockchain stored OK.");
 }
 
 void BlockchainRAM::reset()
@@ -451,7 +515,12 @@ crypto::hash BlockchainRAM::get_block_hash_from_height(const uint64_t& height) c
     throw0(BLOCK_DNE(std::string("Attempted to get hash of block #").append(boost::lexical_cast<std::string>(height)).append("but blockchain max height is ").append(boost::lexical_cast<std::string>(m_height - 1)).c_str()));
   }
 
-  return m_block_hashes.at(height);
+  // we can't store block hashes in a lookup vector for legacy reasons, but
+  // we can at least optimize a little bit.
+  if ((height + 1) < m_height)
+    return m_blocks[height + 1].bl.prev_id;
+
+  return get_block_hash(m_blocks[height].bl);
 }
 
 std::vector<block> BlockchainRAM::get_blocks_range(const uint64_t& h1, const uint64_t& h2) const

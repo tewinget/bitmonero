@@ -27,6 +27,7 @@
 #pragma once
 
 #include "blockchain_db/blockchain_db.h"
+#include <boost/serialization/version.hpp>
 #include "cryptonote_protocol/blobdatatype.h" // for type blobdata
 #include <vector>
 #include <unordered_map>
@@ -143,8 +144,33 @@ public:
 
   virtual void pop_block(block& blk, std::vector<transaction>& txs);
 
+
+  template<class archive_t>
+  void serialize(archive_t & ar, const unsigned int version);
+
 private:
 
+// ------------
+// Needed for legacy deserialization
+// ------------
+  typedef std::unordered_map<crypto::hash, block_extended_info> blocks_ext_by_hash;
+
+  // main chain
+  size_t m_current_block_cumul_sz_limit;
+
+
+  // all alternative chains
+  blocks_ext_by_hash m_alternative_chains; // crypto::hash -> block_extended_info
+
+  // some invalid blocks
+  blocks_ext_by_hash m_invalid_blocks;     // crypto::hash -> block_extended_info
+// ------------
+// /Needed for legacy deserialization
+// ------------
+
+
+
+  typedef std::unordered_map<crypto::hash, transaction_chain_entry> transactions_container;
   typedef std::unordered_map<crypto::hash, size_t> blocks_by_id_index;
   typedef std::unordered_set<crypto::key_image> key_images_container;
   typedef std::vector<block_extended_info> blocks_container;
@@ -154,9 +180,8 @@ private:
   // main chain
   blocks_container m_blocks;               // height  -> block_extended_info
   blocks_by_id_index m_block_heights;       // crypto::hash -> height
-  std::vector<crypto::hash> m_block_hashes;
 
-  std::unordered_map<crypto::hash, transaction_chain_entry> m_txs;
+  transactions_container m_txs;
 
   key_images_container m_spent_keys;
 
@@ -212,4 +237,63 @@ private:
 
 };
 
+#define CURRENT_BLOCKCHAIN_STORAGE_ARCHIVE_VER    12
+
+template<class archive_t>
+void BlockchainRAM::serialize(archive_t & ar, const unsigned int version)
+{
+  if(version < 11)
+    return;
+  ar & m_blocks;
+  ar & m_block_heights;
+  ar & m_txs;
+  ar & m_spent_keys;
+  ar & m_alternative_chains;
+  ar & m_outputs;
+  ar & m_invalid_blocks;
+  ar & m_current_block_cumul_sz_limit;
+  /*serialization bug workaround*/
+  if(version > 11)
+  {
+    uint64_t total_check_count = m_blocks.size() + m_block_heights.size() + m_txs.size() + m_spent_keys.size() + m_alternative_chains.size() + m_outputs.size() + m_invalid_blocks.size() + m_current_block_cumul_sz_limit;
+    if(archive_t::is_saving::value)
+    {        
+      ar & total_check_count;
+    }else
+    {
+      uint64_t total_check_count_loaded = 0;
+      ar & total_check_count_loaded;
+      if(total_check_count != total_check_count_loaded)
+      {
+        LOG_ERROR("Blockchain storage data corruption detected. total_count loaded from file = " << total_check_count_loaded << ", expected = " << total_check_count);
+
+        LOG_PRINT_L0("Blockchain storage:" << ENDL << 
+          "m_blocks: " << m_blocks.size() << ENDL  << 
+          "m_block_heights: " << m_block_heights.size() << ENDL  << 
+          "m_txs: " << m_txs.size() << ENDL  << 
+          "m_spent_keys: " << m_spent_keys.size() << ENDL  << 
+          "m_alternative_chains: " << m_alternative_chains.size() << ENDL  << 
+          "m_outputs: " << m_outputs.size() << ENDL  << 
+          "m_invalid_blocks: " << m_invalid_blocks.size() << ENDL  << 
+          "m_current_block_cumul_sz_limit: " << m_current_block_cumul_sz_limit);
+
+        throw std::runtime_error("Blockchain data corruption");
+      }
+    }
+  }
+
+
+  LOG_PRINT_L2("Blockchain storage:" << ENDL << 
+      "m_blocks: " << m_blocks.size() << ENDL  << 
+      "m_block_heights: " << m_block_heights.size() << ENDL  << 
+      "m_txs: " << m_txs.size() << ENDL  << 
+      "m_spent_keys: " << m_spent_keys.size() << ENDL  << 
+      "m_alternative_chains: " << m_alternative_chains.size() << ENDL  << 
+      "m_outputs: " << m_outputs.size() << ENDL  << 
+      "m_invalid_blocks: " << m_invalid_blocks.size() << ENDL  << 
+      "m_current_block_cumul_sz_limit: " << m_current_block_cumul_sz_limit);
+}
+
 }  // namespace cryptonote
+
+BOOST_CLASS_VERSION(cryptonote::BlockchainRAM, CURRENT_BLOCKCHAIN_STORAGE_ARCHIVE_VER)
