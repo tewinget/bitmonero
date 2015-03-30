@@ -28,6 +28,9 @@
 
 #include "blockchain_db/blockchain_db.h"
 #include "cryptonote_protocol/blobdatatype.h" // for type blobdata
+#include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace cryptonote
 {
@@ -38,7 +41,7 @@ public:
   BlockchainRAM(bool batch_transactions=false);
   ~BlockchainRAM();
 
-  virtual void open(const std::string& filename);
+  virtual void open(const std::string& filename, const int db_flags);
 
   virtual void create(const std::string& filename);
 
@@ -102,8 +105,6 @@ public:
 
   virtual uint64_t get_tx_block_height(const crypto::hash& h) const;
 
-  virtual uint64_t get_random_output(const uint64_t& amount) const;
-
   virtual uint64_t get_num_outputs(const uint64_t& amount) const;
 
   virtual crypto::public_key get_output_key(const uint64_t& amount, const uint64_t& index) const;
@@ -121,11 +122,8 @@ public:
    */
   tx_out get_output(const uint64_t& index) const;
 
-  virtual tx_out_index get_output_tx_and_index_from_global(const uint64_t& index) const;
-
   virtual tx_out_index get_output_tx_and_index(const uint64_t& amount, const uint64_t& index) const;
 
-  virtual std::vector<uint64_t> get_tx_output_indices(const crypto::hash& h) const;
   virtual std::vector<uint64_t> get_tx_amount_output_indices(const crypto::hash& h) const;
 
   virtual bool has_key_image(const crypto::key_image& img) const;
@@ -137,9 +135,38 @@ public:
                             , const std::vector<transaction>& txs
                             );
 
+  virtual void set_batch_transactions(bool batch_transactions);
+  virtual void batch_start();
+  virtual void batch_commit();
+  virtual void batch_stop();
+  virtual void batch_abort();
+
   virtual void pop_block(block& blk, std::vector<transaction>& txs);
 
 private:
+
+  typedef std::unordered_map<crypto::hash, size_t> blocks_by_id_index;
+  typedef std::unordered_set<crypto::key_image> key_images_container;
+  typedef std::vector<block_extended_info> blocks_container;
+  
+  typedef std::map<uint64_t, std::vector<std::pair<crypto::hash, size_t>>> outputs_container; //crypto::hash - tx hash, size_t - index of out in transaction
+
+  // main chain
+  blocks_container m_blocks;               // height  -> block_extended_info
+  blocks_by_id_index m_block_heights;       // crypto::hash -> height
+  std::vector<crypto::hash> m_block_hashes;
+
+  std::unordered_map<crypto::hash, transaction_chain_entry> m_txs;
+
+  key_images_container m_spent_keys;
+
+  outputs_container m_outputs;
+
+  bool m_open;
+  uint64_t m_height;
+  uint64_t m_num_outputs;
+  std::string m_folder;
+
   virtual void add_block( const block& blk
                 , const size_t& block_size
                 , const difficulty_type& cumulative_difficulty
@@ -158,9 +185,6 @@ private:
   virtual void remove_output(const tx_out& tx_output);
 
   void remove_tx_outputs(const crypto::hash& tx_hash, const transaction& tx);
-
-  void remove_output(const uint64_t& out_index, const uint64_t amount);
-  void remove_amount_output_index(const uint64_t amount, const uint64_t global_output_index);
 
   virtual void add_spent_key(const crypto::key_image& k_image);
 
@@ -184,22 +208,7 @@ private:
    */
   tx_out output_from_blob(const blobdata& blob) const;
 
-  /**
-   * @brief get the global index of the index-th output of the given amount
-   *
-   * @param amount the output amount
-   * @param index the index into the set of outputs of that amount
-   *
-   * @return the global index of the desired output
-   */
-  uint64_t get_output_global_index(const uint64_t& amount, const uint64_t& index) const;
-
   void check_open() const;
-
-  bool m_open;
-  uint64_t m_height;
-  uint64_t m_num_outputs;
-  std::string m_folder;
 
 };
 

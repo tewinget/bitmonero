@@ -122,7 +122,9 @@ void BlockchainDB::pop_block(block& blk, std::vector<transaction>& txs)
   remove_block();
   
   remove_transaction(get_transaction_hash(blk.miner_tx));
-  for (const auto& h : blk.tx_hashes)
+
+  // need to remove in insertion order, so reverse iterate
+  BOOST_REVERSE_FOREACH(const auto& h, blk.tx_hashes)
   {
     txs.push_back(get_tx(h));
     remove_transaction(h);
@@ -180,6 +182,26 @@ void BlockchainDB::show_stats()
     << "*********************************"
     << ENDL
   );
+}
+
+//FIXME: make sure the random method used here is appropriate
+uint64_t BlockchainDB::get_random_output(const uint64_t& amount) const
+{
+  LOG_PRINT_L3("BlockchainDB::" << __func__);
+  if (!m_open)
+  {
+    LOG_PRINT_L0("Attempted to get random output on unopened DB");
+    throw(DB_ERROR("Attempted to get random output on unopened DB"));
+  }
+
+  uint64_t num_outputs = get_num_outputs(amount);
+  if (num_outputs == 0)
+  {
+    LOG_PRINT_L0("Attempting to get a random output for an amount, but none exist");
+    throw(OUTPUT_DNE("Attempting to get a random output for an amount, but none exist"));
+  }
+
+  return crypto::rand<uint64_t>() % num_outputs;
 }
 
 }  // namespace cryptonote

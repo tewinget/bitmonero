@@ -619,6 +619,11 @@ BlockchainLMDB::~BlockchainLMDB()
   // batch transaction shouldn't be active at this point. If it is, consider it aborted.
   if (m_batch_active)
     batch_abort();
+
+  if (m_open)
+  {
+    close();
+  }
 }
 
 BlockchainLMDB::BlockchainLMDB(bool batch_transactions)
@@ -736,15 +741,19 @@ void BlockchainLMDB::open(const std::string& filename, const int mdb_flags)
 void BlockchainLMDB::close()
 {
   LOG_PRINT_L3("BlockchainLMDB::" << __func__);
-  if (m_batch_active)
+  if (m_open)
   {
-    LOG_PRINT_L3("close() first calling batch_abort() due to active batch transaction");
-    batch_abort();
-  }
-  this->sync();
+    if (m_batch_active)
+    {
+      LOG_PRINT_L3("close() first calling batch_abort() due to active batch transaction");
+      batch_abort();
+    }
+    sync();
 
-  // FIXME: not yet thread safe!!!  Use with care.
-  mdb_env_close(m_env);
+    // FIXME: not yet thread safe!!!  Use with care.
+    mdb_env_close(m_env);
+    m_open = false;
+  }
 }
 
 void BlockchainLMDB::sync()
@@ -1291,19 +1300,6 @@ uint64_t BlockchainLMDB::get_tx_block_height(const crypto::hash& h) const
     txn.commit();
 
   return *(const uint64_t*)result.mv_data;
-}
-
-//FIXME: make sure the random method used here is appropriate
-uint64_t BlockchainLMDB::get_random_output(const uint64_t& amount) const
-{
-  LOG_PRINT_L3("BlockchainLMDB::" << __func__);
-  check_open();
-
-  uint64_t num_outputs = get_num_outputs(amount);
-  if (num_outputs == 0)
-    throw1(OUTPUT_DNE("Attempting to get a random output for an amount, but none exist"));
-
-  return crypto::rand<uint64_t>() % num_outputs;
 }
 
 uint64_t BlockchainLMDB::get_num_outputs(const uint64_t& amount) const

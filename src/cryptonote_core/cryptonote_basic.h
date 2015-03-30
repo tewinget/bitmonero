@@ -46,6 +46,7 @@
 #include "string_tools.h"
 #include "cryptonote_config.h"
 #include "crypto/crypto.h"
+#include "cryptonote_core/difficulty.h"
 #include "crypto/hash.h"
 #include "misc_language.h"
 #include "tx_extra.h"
@@ -338,6 +339,23 @@ namespace cryptonote
     }
   };
   //---------------------------------------------------------------
+
+  // Blockchain metadata structs
+  struct transaction_chain_entry
+  {
+    transaction tx;
+    uint64_t m_block_height;
+    std::vector<uint64_t> m_amount_output_indices;
+  };
+
+  struct block_extended_info
+  {
+    block   bl;
+    uint64_t height;
+    size_t block_cumulative_size;
+    difficulty_type cumulative_difficulty;
+    uint64_t already_generated_coins;
+  };
 
 }
 

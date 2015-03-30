@@ -47,6 +47,7 @@ using namespace epee;
 #include "blockchain_db/blockchain_db.h"
 #include "blockchain_db/lmdb/db_lmdb.h"
 #include "blockchain_db/berkeleydb/db_bdb.h"
+#include "blockchain_db/in_memory/db_ram.h"
 
 DISABLE_VS_WARNINGS(4355)
 
@@ -208,6 +209,10 @@ namespace cryptonote
     else if (db_type == "berkeley")
     {
       db = new BlockchainBDB();
+    }
+    else if (db_type == "in-memory")
+    {
+      db = new BlockchainRAM();
     }
     else
     {

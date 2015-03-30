@@ -35,6 +35,7 @@ namespace cryptonote
   const std::unordered_set<std::string> blockchain_db_types = 
   { "lmdb"
   , "berkeley"
+  , "in-memory"
   };
 
 } // namespace cryptonote

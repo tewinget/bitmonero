@@ -62,22 +62,6 @@ namespace cryptonote
   class Blockchain
   {
   public:
-    struct transaction_chain_entry
-    {
-      transaction tx;
-      uint64_t m_keeper_block_height;
-      size_t m_blob_size;
-      std::vector<uint64_t> m_global_output_indexes;
-    };
-
-    struct block_extended_info
-    {
-      block   bl;
-      uint64_t height;
-      size_t block_cumulative_size;
-      difficulty_type cumulative_difficulty;
-      uint64_t already_generated_coins;
-    };
 
     Blockchain(tx_memory_pool& tx_pool);
 

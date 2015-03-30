@@ -108,7 +108,6 @@
  *   uint64_t    get_num_outputs(amount)
  *   pub_key     get_output_key(amount, index)
  *   tx_out      get_output(tx_hash, index)
- *   hash,index  get_output_tx_and_index_from_global(index)
  *   hash,index  get_output_tx_and_index(amount, index)
  *   vec<uint64> get_tx_output_indices(tx_hash)
  *
@@ -136,7 +135,7 @@ namespace cryptonote
 {
 
 // typedef for convenience
-typedef std::pair<crypto::hash, uint64_t> tx_out_index;
+typedef std::pair<crypto::hash, size_t> tx_out_index;
 
 /***********************************
  * Exception Definitions
@@ -455,7 +454,7 @@ public:
   virtual uint64_t get_tx_block_height(const crypto::hash& h) const = 0;
 
   // return global output index of a random output of amount <amount>
-  virtual uint64_t get_random_output(const uint64_t& amount) const = 0;
+  uint64_t get_random_output(const uint64_t& amount) const;
 
   // returns the total number of outputs of amount <amount>
   virtual uint64_t get_num_outputs(const uint64_t& amount) const = 0;
@@ -466,16 +465,10 @@ public:
   // returns the output indexed by <index> in the transaction with hash <h>
   virtual tx_out get_output(const crypto::hash& h, const uint64_t& index) const = 0;
 
-  // returns the tx hash associated with an output, referenced by global output index
-  virtual tx_out_index get_output_tx_and_index_from_global(const uint64_t& index) const = 0;
-
   // returns the transaction-local reference for the output with <amount> at <index>
   // return type is pair of tx hash and index
   virtual tx_out_index get_output_tx_and_index(const uint64_t& amount, const uint64_t& index) const = 0;
 
-  // return a vector of indices corresponding to the global output index for
-  // each output in the transaction with hash <h>
-  virtual std::vector<uint64_t> get_tx_output_indices(const crypto::hash& h) const = 0;
   // return a vector of indices corresponding to the amount output index for
   // each output in the transaction with hash <h>
   virtual std::vector<uint64_t> get_tx_amount_output_indices(const crypto::hash& h) const = 0;

@@ -177,8 +177,6 @@ public:
 
   virtual uint64_t get_tx_block_height(const crypto::hash& h) const;
 
-  virtual uint64_t get_random_output(const uint64_t& amount) const;
-
   virtual uint64_t get_num_outputs(const uint64_t& amount) const;
 
   virtual crypto::public_key get_output_key(const uint64_t& amount, const uint64_t& index) const;
@@ -196,11 +194,9 @@ public:
    */
   tx_out get_output(const uint64_t& index) const;
 
-  virtual tx_out_index get_output_tx_and_index_from_global(const uint64_t& index) const;
 
   virtual tx_out_index get_output_tx_and_index(const uint64_t& amount, const uint64_t& index) const;
 
-  virtual std::vector<uint64_t> get_tx_output_indices(const crypto::hash& h) const;
   virtual std::vector<uint64_t> get_tx_amount_output_indices(const crypto::hash& h) const;
 
   virtual bool has_key_image(const crypto::key_image& img) const;
@@ -274,6 +270,11 @@ private:
    * @return the global index of the desired output
    */
   uint64_t get_output_global_index(const uint64_t& amount, const uint64_t& index) const;
+
+  // returns the tx hash associated with an output, referenced by global output index
+  tx_out_index get_output_tx_and_index_from_global(const uint64_t& index) const;
+
+  std::vector<uint64_t> get_tx_output_indices(const crypto::hash& h) const;
 
   void check_open() const;
 
