@@ -883,43 +883,63 @@ namespace
 // returns:
 //    direct return: amount of money found
 //    modified reference: selected_transfers, a list of iterators/indices of input sources
-uint64_t wallet2::select_transfers(uint64_t needed_money, bool add_dust, uint64_t dust, std::list<transfer_container::iterator>& selected_transfers)
+uint64_t wallet2::select_transfers(uint64_t needed_money, bool add_dust, uint64_t dust, std::list<transfer_container::iterator>& selected_transfers, const std::unordered_set<uint64_t>& unmixable_amounts)
 {
   std::vector<size_t> unused_transfers_indices;
   std::vector<size_t> unused_dust_indices;
 
   // aggregate sources available for transfers
   // if dust needed, take dust from only one source (so require source has at least dust amount)
-  for (size_t i = 0; i < m_transfers.size(); ++i)
+  for (size_t i = m_transfers.size(); i > 0; --i)
   {
-    const transfer_details& td = m_transfers[i];
+    const transfer_details& td = m_transfers[i - 1];
     if (!td.m_spent && is_transfer_unlocked(td))
     {
       if (dust < td.amount())
-        unused_transfers_indices.push_back(i);
+        unused_transfers_indices.push_back(i - 1);
       else
-        unused_dust_indices.push_back(i);
+        unused_dust_indices.push_back(i - 1);
     }
   }
 
   bool select_one_dust = add_dust && !unused_dust_indices.empty();
   uint64_t found_money = 0;
-  while (found_money < needed_money && (!unused_transfers_indices.empty() || !unused_dust_indices.empty()))
-  {
-    size_t idx;
-    if (select_one_dust)
-    {
-      idx = pop_random_value(unused_dust_indices);
-      select_one_dust = false;
-    }
-    else
-    {
-      idx = !unused_transfers_indices.empty() ? pop_random_value(unused_transfers_indices) : pop_random_value(unused_dust_indices);
-    }
 
+  // grab at least one dust if asked to include dust (for de-dusting)
+  // TODO: is the definition of dust used in this function current?
+  if (select_one_dust)
+  {
+    size_t idx = unused_dust_indices.back();
+    unused_dust_indices.pop_back();
     transfer_container::iterator it = m_transfers.begin() + idx;
     selected_transfers.push_back(it);
     found_money += it->amount();
+  }
+
+  // grab outputs (least-recent first) until we have enough
+  // or run out of mixable outputs to spend
+  while (found_money < needed_money && (!unused_transfers_indices.empty() || !unused_dust_indices.empty()))
+  {
+    size_t idx;
+    if (!unused_transfers_indices.empty())
+    {
+      idx = unused_transfers_indices.back();
+      unused_transfers_indices.pop_back();
+    }
+    else
+    {
+      idx = unused_dust_indices.back();
+      unused_dust_indices.pop_back();
+    }
+
+    transfer_container::iterator it = m_transfers.begin() + idx;
+
+    // if earlier attempts have shown the amount to be unmixable, ignore it and move on
+    if (unmixable_amounts.count(it->amount()) == 0)
+    {
+      selected_transfers.push_back(it);
+      found_money += it->amount();
+    }
   }
 
   return found_money;
