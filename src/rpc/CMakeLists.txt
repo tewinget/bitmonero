@@ -34,9 +34,14 @@ set(daemon_messages_sources
   "message.cpp"
   daemon_messages.cpp)
 
+set(daemon_rpc_server_sources
+  daemon_handler.cpp)
+
 
 set(rpc_headers
   rpc_args.h)
+
+set(daemon_rpc_server_headers)
 
 
 set(rpc_daemon_private_headers
@@ -48,9 +53,18 @@ set(daemon_messages_private_headers
   "message.h"
   daemon_messages.h)
 
+set(daemon_rpc_server_private_headers
+  "message.h"
+  daemon_messages.h
+  daemon_handler.h
+  rpc_handler.h)
+
 
 monero_private_headers(rpc
   ${rpc_private_headers})
+
+monero_private_headers(daemon_rpc_server
+  ${daemon_rpc_server_private_headers})
 
 
 monero_add_library(rpc
@@ -63,6 +77,10 @@ monero_add_library(daemon_messages
   ${daemon_messages_headers}
   ${daemon_messages_private_headers})
 
+monero_add_library(daemon_rpc_server
+  ${daemon_rpc_server_sources}
+  ${daemon_rpc_server_headers}
+  ${daemon_rpc_server_private_headers})
 
 target_link_libraries(rpc
   PUBLIC
@@ -82,6 +100,21 @@ target_link_libraries(daemon_messages
     serialization
     ${EXTRA_LIBRARIES})
 
+target_link_libraries(daemon_rpc_server
+  LINK_PRIVATE
+    cryptonote_core
+    cryptonote_protocol
+    daemon_messages
+    serialization
+    ${Boost_CHRONO_LIBRARY}
+    ${Boost_REGEX_LIBRARY}
+    ${Boost_SYSTEM_LIBRARY}
+    ${Boost_THREAD_LIBRARY}
+    ${EXTRA_LIBRARIES})
+
 
 add_dependencies(rpc
+  version)
+
+add_dependencies(daemon_rpc_server
   version)
