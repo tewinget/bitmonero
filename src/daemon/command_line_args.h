@@ -89,12 +89,6 @@ namespace daemon_args
       , false
   };
 
-  const command_line::arg_descriptor<std::string> arg_zmq_user_agent = {
-    "zmq-user-agent"
-      , "Restrict ZMQ RPC to clients using this user agent"
-      , ""
-  };
-
 }  // namespace daemon_args
 
 #endif // DAEMON_COMMAND_LINE_ARGS_H
