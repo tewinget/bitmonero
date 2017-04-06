@@ -30,20 +30,40 @@ set(rpc_sources
   core_rpc_server.cpp
   rpc_args.cpp)
 
+set(daemon_messages_sources
+  "message.cpp"
+  daemon_messages.cpp)
+
+
 set(rpc_headers
   rpc_args.h)
 
-set(rpc_private_headers
+
+set(rpc_daemon_private_headers
   core_rpc_server.h
   core_rpc_server_commands_defs.h
   core_rpc_server_error_codes.h)
 
+set(daemon_messages_private_headers
+  "message.h"
+  daemon_messages.h)
+
+
 monero_private_headers(rpc
   ${rpc_private_headers})
+
+
 monero_add_library(rpc
   ${rpc_sources}
   ${rpc_headers}
   ${rpc_private_headers})
+
+monero_add_library(daemon_messages
+  ${daemon_messages_sources}
+  ${daemon_messages_headers}
+  ${daemon_messages_private_headers})
+
+
 target_link_libraries(rpc
   PUBLIC
     common
@@ -54,5 +74,14 @@ target_link_libraries(rpc
     ${Boost_THREAD_LIBRARY}
   PRIVATE
     ${EXTRA_LIBRARIES})
+
+target_link_libraries(daemon_messages
+  LINK_PRIVATE
+    cryptonote_core
+    cryptonote_protocol
+    serialization
+    ${EXTRA_LIBRARIES})
+
+
 add_dependencies(rpc
   version)
