@@ -53,7 +53,7 @@ class GetHeight
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -65,7 +65,7 @@ class GetHeight
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         uint64_t height;
@@ -84,7 +84,7 @@ class GetBlocksFast
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         std::list<crypto::hash> block_ids;
@@ -98,7 +98,7 @@ class GetBlocksFast
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         std::vector<cryptonote::rpc::block_with_transactions> blocks;
@@ -120,7 +120,7 @@ class GetHashesFast
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         std::list<crypto::hash> known_hashes;
@@ -133,7 +133,7 @@ class GetHashesFast
         Response() { }
         ~Response() { }
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         std::list<crypto::hash> hashes;
@@ -155,7 +155,7 @@ class GetTransactions
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         std::vector<crypto::hash> tx_hashes;
@@ -172,7 +172,7 @@ class GetTransactions
 
         std::vector<crypto::hash> missed_hashes;
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -197,7 +197,7 @@ class KeyImagesSpent
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         std::vector<crypto::key_image> key_images;
@@ -210,7 +210,7 @@ class KeyImagesSpent
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         std::vector<uint64_t> spent_status;
@@ -229,7 +229,7 @@ class GetTxGlobalOutputIndices
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         crypto::hash tx_hash;
@@ -242,7 +242,7 @@ class GetTxGlobalOutputIndices
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         std::vector<uint64_t> output_indices;
@@ -261,7 +261,7 @@ class GetRandomOutputsForAmounts
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         std::vector<uint64_t> amounts;
@@ -275,7 +275,7 @@ class GetRandomOutputsForAmounts
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         std::vector<amount_with_random_outputs> amounts_with_outputs;
@@ -294,7 +294,7 @@ class SendRawTx
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         cryptonote::transaction tx;
@@ -308,7 +308,7 @@ class SendRawTx
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         bool relayed;
@@ -327,7 +327,7 @@ class StartMining
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         std::string miner_address;
@@ -341,7 +341,7 @@ class StartMining
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         bool success;
@@ -360,7 +360,7 @@ class GetInfo
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -372,7 +372,7 @@ class GetInfo
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         uint64_t height;
@@ -403,7 +403,7 @@ class StopMining
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -415,7 +415,7 @@ class StopMining
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         bool success;
@@ -434,7 +434,7 @@ class MiningStatus
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -446,7 +446,7 @@ class MiningStatus
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         bool active;
@@ -468,7 +468,7 @@ class SaveBC
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -480,7 +480,7 @@ class SaveBC
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -498,7 +498,7 @@ class GetBlockHash
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         uint64_t height;
@@ -512,7 +512,7 @@ class GetBlockHash
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         crypto::hash hash;
@@ -531,7 +531,7 @@ class GetBlockTemplate
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -543,7 +543,7 @@ class GetBlockTemplate
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -561,7 +561,7 @@ class SubmitBlock
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -573,7 +573,7 @@ class SubmitBlock
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -591,7 +591,7 @@ class GetLastBlockHeader
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -603,7 +603,7 @@ class GetLastBlockHeader
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         cryptonote::rpc::BlockHeaderResponse header;
@@ -622,7 +622,7 @@ class GetBlockHeaderByHash
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         crypto::hash hash;
@@ -635,7 +635,7 @@ class GetBlockHeaderByHash
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         cryptonote::rpc::BlockHeaderResponse header;
@@ -654,7 +654,7 @@ class GetBlockHeaderByHeight
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         uint64_t height;
@@ -667,7 +667,7 @@ class GetBlockHeaderByHeight
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         cryptonote::rpc::BlockHeaderResponse header;
@@ -686,7 +686,7 @@ class GetBlock
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -698,7 +698,7 @@ class GetBlock
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -715,7 +715,7 @@ class GetPeerList
         Request() { }
         ~Request() { }
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -726,7 +726,7 @@ class GetPeerList
         Response() { }
         ~Response() { }
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         std::vector<peer> white_list;
@@ -746,7 +746,7 @@ class SetLogHashRate
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -758,7 +758,7 @@ class SetLogHashRate
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -775,7 +775,7 @@ class SetLogLevel
         Request() { }
         ~Request() { }
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         int8_t level;
@@ -787,7 +787,7 @@ class SetLogLevel
         Response() { }
         ~Response() { }
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
     };
 };
@@ -804,7 +804,7 @@ class GetTransactionPool
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -816,7 +816,7 @@ class GetTransactionPool
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         std::vector<cryptonote::rpc::tx_in_pool> transactions;
@@ -836,7 +836,7 @@ class GetConnections
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -848,7 +848,7 @@ class GetConnections
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -866,7 +866,7 @@ class GetBlockHeadersRange
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -878,7 +878,7 @@ class GetBlockHeadersRange
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -896,7 +896,7 @@ class StopDaemon
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -908,7 +908,7 @@ class StopDaemon
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -926,7 +926,7 @@ class FastExit
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -938,7 +938,7 @@ class FastExit
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -956,7 +956,7 @@ class OutPeers
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -968,7 +968,7 @@ class OutPeers
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -986,7 +986,7 @@ class StartSaveGraph
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -998,7 +998,7 @@ class StartSaveGraph
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -1016,7 +1016,7 @@ class StopSaveGraph
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -1028,7 +1028,7 @@ class StopSaveGraph
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -1045,7 +1045,7 @@ class HardForkInfo
         Request() { }
         ~Request() { }
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         uint8_t version;
@@ -1057,7 +1057,7 @@ class HardForkInfo
         Response() { }
         ~Response() { }
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         hard_fork_info info;
@@ -1076,7 +1076,7 @@ class GetBans
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -1088,7 +1088,7 @@ class GetBans
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -1106,7 +1106,7 @@ class SetBans
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -1118,7 +1118,7 @@ class SetBans
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -1136,7 +1136,7 @@ class FlushTransactionPool
         ~Request() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -1148,7 +1148,7 @@ class FlushTransactionPool
         ~Response() { }
 
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -1165,7 +1165,7 @@ class GetOutputHistogram
         Request() { }
         ~Request() { }
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         std::vector<uint64_t> amounts;
@@ -1181,7 +1181,7 @@ class GetOutputHistogram
         Response() { }
         ~Response() { }
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         std::vector<output_amount_count> histogram;
@@ -1199,7 +1199,7 @@ class GetOutputKeys
         Request() { }
         ~Request() { }
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         std::vector<output_amount_and_index> outputs;
@@ -1212,7 +1212,7 @@ class GetOutputKeys
         Response() { }
         ~Response() { }
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         std::vector<output_key_mask_unlocked> keys;
@@ -1230,7 +1230,7 @@ class GetRPCVersion
         Request() { }
         ~Request() { }
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
     };
@@ -1241,7 +1241,7 @@ class GetRPCVersion
         Response() { }
         ~Response() { }
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         uint32_t version;
@@ -1259,7 +1259,7 @@ class GetPerKBFeeEstimate
         Request() { }
         ~Request() { }
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         uint64_t num_grace_blocks;
@@ -1271,7 +1271,7 @@ class GetPerKBFeeEstimate
         Response() { }
         ~Response() { }
 
-        rapidjson::Value toJson(rapidjson::Document& doc);
+        rapidjson::Value toJson(rapidjson::Document& doc) const;
         void fromJson(rapidjson::Value& val);
 
         uint64_t estimated_fee_per_kb;
