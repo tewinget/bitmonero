@@ -93,7 +93,6 @@ int main(int argc, char const * argv[])
       command_line::add_arg(core_settings, daemon_args::arg_zmq_rpc_bind_port);
       command_line::add_arg(core_settings, daemon_args::arg_zmq_testnet_rpc_bind_port);
       command_line::add_arg(core_settings, daemon_args::arg_zmq_restricted_rpc);
-      command_line::add_arg(core_settings, daemon_args::arg_zmq_user_agent);
 
       daemonizer::init_options(hidden_options, visible_options);
       daemonize::t_executor::init_options(core_settings);
