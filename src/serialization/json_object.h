@@ -147,6 +147,9 @@ void fromJsonValue(const rapidjson::Value& val, int8_t& i);
 void toJsonValue(rapidjson::Document& doc, const uint16_t& i, rapidjson::Value& val);
 void fromJsonValue(const rapidjson::Value& val, uint16_t& i);
 
+void toJsonValue(rapidjson::Document& doc, const int32_t& i, rapidjson::Value& val);
+void fromJsonValue(const rapidjson::Value& val, int32_t& i);
+
 void toJsonValue(rapidjson::Document& doc, const uint32_t& i, rapidjson::Value& val);
 void fromJsonValue(const rapidjson::Value& val, uint32_t& i);
 

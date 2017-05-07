@@ -113,6 +113,22 @@ void fromJsonValue(const rapidjson::Value& val, uint16_t& i)
   i = (uint16_t) ( val.GetUint() & 0xFFFF);
 }
 
+void toJsonValue(rapidjson::Document& doc, const int32_t& i, rapidjson::Value& val)
+{
+  val = rapidjson::Value(i);
+}
+
+
+void fromJsonValue(const rapidjson::Value& val, int32_t& i)
+{
+  if (!val.IsInt())
+  {
+    throw WRONG_TYPE("signed integer");
+  }
+
+  i = val.GetInt();
+}
+
 void toJsonValue(rapidjson::Document& doc, const uint32_t& i, rapidjson::Value& val)
 {
   val = rapidjson::Value(i);
