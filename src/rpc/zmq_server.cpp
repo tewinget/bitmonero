@@ -54,50 +54,43 @@ ZmqServer::~ZmqServer()
 void ZmqServer::serve()
 {
 
-  while (!stop_signal)
+  while (1)
   {
-    for (zmq::socket_t* socket : sockets)
+    try
     {
-      zmq::message_t message;
-
-      while (socket->recv(&message, ZMQ_DONTWAIT))
+      for (zmq::socket_t* socket : sockets)
       {
-        std::string message_string(reinterpret_cast<const char *>(message.data()), message.size());
+        zmq::message_t message;
 
-        LOG_PRINT_L2(std::string("Received RPC request: \"") + message_string + "\"");
+        while (socket->recv(&message))
+        {
+          std::string message_string(reinterpret_cast<const char *>(message.data()), message.size());
 
-        std::string response = handler.handle(message_string);
+          MDEBUG(std::string("Received RPC request: \"") + message_string + "\"");
 
-        zmq::message_t reply(response.size());
-        memcpy((void *) reply.data(), response.c_str(), response.size());
+          std::string response = handler.handle(message_string);
 
-        socket->send(reply);
-        LOG_PRINT_L2(std::string("Sent RPC reply: \"") + response + "\"");
+          zmq::message_t reply(response.size());
+          memcpy((void *) reply.data(), response.c_str(), response.size());
+
+          socket->send(reply);
+          MDEBUG(std::string("Sent RPC reply: \"") + response + "\"");
+        }
+
       }
-
-      // TODO: make this configurable
-      boost::this_thread::sleep_for(boost::chrono::milliseconds(DEFAULT_RPC_WAIT_TIME_MS));
     }
+    catch (boost::thread_interrupted& e)
+    {
+      MDEBUG("ZMQ Server thread interrupted.");
+    }
+    boost::this_thread::interruption_point();
   }
 }
 
 bool ZmqServer::addIPCSocket(std::string address, std::string port)
 {
-  try
-  {
-    std::string addr_prefix("ipc://");
-
-    zmq::socket_t* socket = new zmq::socket_t(context, ZMQ_REP);
-
-    std::string bind_address = addr_prefix + address + std::string(":") + port;
-    socket->bind(bind_address.c_str());
-    sockets.push_back(socket);
-  }
-  catch (...)
-  {
-    return false;
-  }
-  return true;
+  MERROR("ZmqServer::addIPCSocket not yet implemented!");
+  return false;
 }
 
 bool ZmqServer::addTCPSocket(std::string address, std::string port)
@@ -109,12 +102,15 @@ bool ZmqServer::addTCPSocket(std::string address, std::string port)
 
     new_socket = new zmq::socket_t(context, ZMQ_REP);
 
+    new_socket->setsockopt(ZMQ_RCVTIMEO, DEFAULT_RPC_RECV_TIMEOUT_MS);
+
     std::string bind_address = addr_prefix + address + std::string(":") + port;
     new_socket->bind(bind_address.c_str());
     sockets.push_back(new_socket);
   }
-  catch (...)
+  catch (std::exception& e)
   {
+    MERROR(std::string("Error creating ZMQ Socket: ") + e.what());
     if (new_socket)
     {
       delete new_socket;
@@ -127,7 +123,6 @@ bool ZmqServer::addTCPSocket(std::string address, std::string port)
 void ZmqServer::run()
 {
   running = true;
-  stop_signal = false;
   run_thread = boost::thread(boost::bind(&ZmqServer::serve, this));
 }
 
@@ -137,6 +132,7 @@ void ZmqServer::stop()
 
   stop_signal = true;
 
+  run_thread.interrupt();
   run_thread.join();
 
   running = false;
