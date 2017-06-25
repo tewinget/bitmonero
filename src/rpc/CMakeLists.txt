@@ -31,7 +31,7 @@ set(rpc_sources
   rpc_args.cpp)
 
 set(daemon_messages_sources
-  "message.cpp"
+  message.cpp
   daemon_messages.cpp)
 
 set(daemon_rpc_server_sources
@@ -51,11 +51,11 @@ set(rpc_daemon_private_headers
   core_rpc_server_error_codes.h)
 
 set(daemon_messages_private_headers
-  "message.h"
+  message.h
   daemon_messages.h)
 
 set(daemon_rpc_server_private_headers
-  "message.h"
+  message.h
   daemon_messages.h
   daemon_handler.h
   rpc_handler.h
@@ -113,8 +113,8 @@ target_link_libraries(daemon_rpc_server
     ${Boost_REGEX_LIBRARY}
     ${Boost_SYSTEM_LIBRARY}
     ${Boost_THREAD_LIBRARY}
-    ${EXTRA_LIBRARIES}
-    ${ZMQ_LIB})
+    ${ZMQ_LIB}
+    ${EXTRA_LIBRARIES})
 
 
 add_dependencies(rpc

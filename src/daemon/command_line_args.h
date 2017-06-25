@@ -67,19 +67,19 @@ namespace daemon_args
 
   const command_line::arg_descriptor<std::string> arg_zmq_rpc_bind_ip   = {
     "zmq-rpc-bind-ip"
-      , "IP for ZMQ RPC server"
+      , "IP for ZMQ RPC server to listen on"
       , "127.0.0.1"
   };
 
   const command_line::arg_descriptor<std::string> arg_zmq_rpc_bind_port = {
     "zmq-rpc-bind-port"
-      , "Port for ZMQ RPC server"
+      , "Port for ZMQ RPC server to listen on"
       , std::to_string(config::ZMQ_RPC_DEFAULT_PORT)
   };
 
   const command_line::arg_descriptor<std::string> arg_zmq_testnet_rpc_bind_port = {
     "zmq-testnet-rpc-bind-port"
-      , "Port for testnet ZMQ RPC server"
+      , "Port for testnet ZMQ RPC server to listen on"
       , std::to_string(config::testnet::ZMQ_RPC_DEFAULT_PORT)
   };
 

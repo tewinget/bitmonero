@@ -1,4 +1,4 @@
-// Copyright (c) 2016, The Monero Project
+// Copyright (c) 2017, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -72,13 +72,27 @@ namespace rpc
     {
       cryptonote::rpc::block_with_transactions& bwt = res.blocks[block_count];
 
-      parse_and_validate_block_from_blob(it->first, bwt.block);
+      if (!parse_and_validate_block_from_blob(it->first, bwt.block))
+      {
+        res.blocks.clear();
+        res.output_indices.clear();
+        res.status = Message::STATUS_FAILED;
+        res.error_details = "failed retrieving a requested block";
+        return;
+      }
 
       std::list<transaction> txs;
-      for (auto& blob : it->second)
+      for (const auto& blob : it->second)
       {
         txs.resize(txs.size() + 1);
-        parse_and_validate_tx_from_blob(blob, txs.back());
+        if (!parse_and_validate_tx_from_blob(blob, txs.back()))
+        {
+          res.blocks.clear();
+          res.output_indices.clear();
+          res.status = Message::STATUS_FAILED;
+          res.error_details = "failed retrieving a requested block";
+          return;
+        }
       }
 
       cryptonote::rpc::block_output_indices& indices = res.output_indices[block_count];
@@ -99,7 +113,7 @@ namespace rpc
       // assume each block returned is returned with all its transactions
       // in the correct order.
       auto tx_it = txs.begin();
-      for (crypto::hash& h : bwt.block.tx_hashes)
+      for (const crypto::hash& h : bwt.block.tx_hashes)
       {
         bwt.transactions.emplace(h, *tx_it);
         tx_it++;
@@ -186,7 +200,7 @@ namespace rpc
 
       m_core.get_pool_transactions(pool_txs);
 
-      for (auto& tx : pool_txs)
+      for (const auto& tx : pool_txs)
       {
         crypto::hash h = get_transaction_hash(tx);
 
@@ -234,7 +248,7 @@ namespace rpc
       return;
     }
 
-    for(uint64_t i=0; i < req.key_images.size(); i++)
+    for(size_t i=0; i < req.key_images.size(); i++)
     {
       if ( chain_spent_status[i] )
       {
@@ -277,7 +291,7 @@ namespace rpc
 
         ofa.resize(indices.size());
 
-        for (uint64_t i = 0; i < indices.size(); i++)
+        for (size_t i = 0; i < indices.size(); i++)
         {
           crypto::public_key key = chain.get_output_key(amount, indices[i]);
           ofa[i].amount_index = indices[i];
@@ -390,6 +404,8 @@ namespace rpc
 
   void DaemonHandler::handle(const StartMining::Request& req, StartMining::Response& res)
   {
+    res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   void DaemonHandler::handle(const GetInfo::Request& req, GetInfo::Response& res)
@@ -430,10 +446,14 @@ namespace rpc
 
   void DaemonHandler::handle(const StopMining::Request& req, StopMining::Response& res)
   {
+    res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   void DaemonHandler::handle(const MiningStatus::Request& req, MiningStatus::Response& res)
   {
+    res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   void DaemonHandler::handle(const SaveBC::Request& req, SaveBC::Response& res)
@@ -466,10 +486,14 @@ namespace rpc
 
   void DaemonHandler::handle(const GetBlockTemplate::Request& req, GetBlockTemplate::Response& res)
   {
+    res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   void DaemonHandler::handle(const SubmitBlock::Request& req, SubmitBlock::Response& res)
   {
+    res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   void DaemonHandler::handle(const GetLastBlockHeader::Request& req, GetLastBlockHeader::Response& res)
@@ -514,6 +538,8 @@ namespace rpc
 
   void DaemonHandler::handle(const GetBlock::Request& req, GetBlock::Response& res)
   {
+    res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   //TODO: this RPC call is marked for later implementation in the old RPC,
@@ -521,10 +547,13 @@ namespace rpc
   void DaemonHandler::handle(const GetPeerList::Request& req, GetPeerList::Response& res)
   {
     res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   void DaemonHandler::handle(const SetLogHashRate::Request& req, SetLogHashRate::Response& res)
   {
+    res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   void DaemonHandler::handle(const SetLogLevel::Request& req, SetLogLevel::Response& res)
@@ -551,30 +580,44 @@ namespace rpc
 
   void DaemonHandler::handle(const GetConnections::Request& req, GetConnections::Response& res)
   {
+    res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   void DaemonHandler::handle(const GetBlockHeadersRange::Request& req, GetBlockHeadersRange::Response& res)
   {
+    res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   void DaemonHandler::handle(const StopDaemon::Request& req, StopDaemon::Response& res)
   {
+    res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   void DaemonHandler::handle(const FastExit::Request& req, FastExit::Response& res)
   {
+    res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   void DaemonHandler::handle(const OutPeers::Request& req, OutPeers::Response& res)
   {
+    res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   void DaemonHandler::handle(const StartSaveGraph::Request& req, StartSaveGraph::Response& res)
   {
+    res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   void DaemonHandler::handle(const StopSaveGraph::Request& req, StopSaveGraph::Response& res)
   {
+    res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   void DaemonHandler::handle(const HardForkInfo::Request& req, HardForkInfo::Response& res)
@@ -589,14 +632,20 @@ namespace rpc
 
   void DaemonHandler::handle(const GetBans::Request& req, GetBans::Response& res)
   {
+    res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   void DaemonHandler::handle(const SetBans::Request& req, SetBans::Response& res)
   {
+    res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   void DaemonHandler::handle(const FlushTransactionPool::Request& req, FlushTransactionPool::Response& res)
   {
+    res.status = Message::STATUS_FAILED;
+    res.error_details = "RPC method not yet implemented.";
   }
 
   void DaemonHandler::handle(const GetOutputHistogram::Request& req, GetOutputHistogram::Response& res)
@@ -626,7 +675,7 @@ namespace rpc
 
   void DaemonHandler::handle(const GetOutputKeys::Request& req, GetOutputKeys::Response& res)
   {
-    for (auto& i : req.outputs)
+    for (const auto& i : req.outputs)
     {
       crypto::public_key key;
       rct::key mask;
@@ -650,9 +699,40 @@ namespace rpc
     res.status = Message::STATUS_OK;
   }
 
+  bool DaemonHandler::getBlockHeaderByHash(const crypto::hash& hash_in, cryptonote::rpc::BlockHeaderResponse& header)
+  {
+    block b;
+
+    if (!m_core.get_block_by_hash(hash_in, b))
+    {
+      return false;
+    }
+
+    header.hash = hash_in;
+    header.height = boost::get<txin_gen>(b.miner_tx.vin.front()).height;
+
+    header.major_version = b.major_version;
+    header.minor_version = b.minor_version;
+    header.timestamp = b.timestamp;
+    header.nonce = b.nonce;
+    header.prev_id = b.prev_id;
+
+    header.depth = m_core.get_current_blockchain_height() - header.height - 1;
+
+    header.reward = 0;
+    for (const auto& out : b.miner_tx.vout)
+    {
+      header.reward += out.amount;
+    }
+
+    header.difficulty = m_core.get_blockchain_storage().block_difficulty(header.height);
+
+    return true;
+  }
+
   std::string DaemonHandler::handle(const std::string& request)
   {
-    LOG_PRINT_L2("Handling RPC request: " << request);
+    MDEBUG("Handling RPC request: " << request);
 
     Message* resp_message = NULL;
 
@@ -662,7 +742,7 @@ namespace rpc
 
       rapidjson::Value& req_json = req_full.getMessage();
 
-      std::string request_type = req_full.getRequestType();
+      const std::string request_type = req_full.getRequestType();
 
       // create correct Message subclass and call handle() on it
       REQ_RESP_TYPES_MACRO(request_type, GetHeight, req_json, resp_message, handle);
@@ -696,11 +776,11 @@ namespace rpc
 
       FullMessage resp_full = FullMessage::responseMessage(resp_message, req_full.getID());
 
-      std::string response = resp_full.getJson();
+      const std::string response = resp_full.getJson();
       delete resp_message;
       resp_message = NULL;
 
-      LOG_PRINT_L2("Returning RPC response: " << response);
+      MDEBUG("Returning RPC response: " << response);
 
       return response;
     }
@@ -713,37 +793,6 @@ namespace rpc
 
       return BAD_JSON(e.what());
     }
-  }
-
-  bool DaemonHandler::getBlockHeaderByHash(const crypto::hash& hash_in, cryptonote::rpc::BlockHeaderResponse& header)
-  {
-    block b;
-
-    if (!m_core.get_block_by_hash(hash_in, b))
-    {
-      return false;
-    }
-
-    header.hash = hash_in;
-    header.height = boost::get<txin_gen>(b.miner_tx.vin.front()).height;
-
-    header.major_version = b.major_version;
-    header.minor_version = b.minor_version;
-    header.timestamp = b.timestamp;
-    header.nonce = b.nonce;
-    header.prev_id = b.prev_id;
-
-    header.depth = m_core.get_current_blockchain_height() - header.height - 1;
-
-    header.reward = 0;
-    for (auto& out : b.miner_tx.vout)
-    {
-      header.reward += out.amount;
-    }
-
-    header.difficulty = m_core.get_blockchain_storage().block_difficulty(header.height);
-
-    return true;
   }
 
 }  // namespace rpc
