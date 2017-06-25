@@ -78,6 +78,11 @@ void fromJsonValue(const rapidjson::Value& val, uint8_t& i)
     throw WRONG_TYPE("unsigned integer");
   }
 
+  if (val.GetUint() > 0xFF)
+  {
+    throw WRONG_TYPE("type too large");
+  }
+
   i = (uint8_t)( val.GetUint() & 0xFF);
 }
 
@@ -94,6 +99,11 @@ void fromJsonValue(const rapidjson::Value& val, int8_t& i)
     throw WRONG_TYPE("integer");
   }
 
+  if (val.GetInt() > 0xFF)
+  {
+    throw WRONG_TYPE("type too large");
+  }
+
   i = (int8_t) ( val.GetInt() & 0xFF);
 }
 
@@ -108,6 +118,11 @@ void fromJsonValue(const rapidjson::Value& val, uint16_t& i)
   if (!val.IsUint())
   {
     throw WRONG_TYPE("unsigned integer");
+  }
+
+  if (val.GetUint() > 0xFFFF)
+  {
+    throw WRONG_TYPE("type too large");
   }
 
   i = (uint16_t) ( val.GetUint() & 0xFFFF);
