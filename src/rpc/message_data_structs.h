@@ -164,6 +164,23 @@ namespace rpc
     uint64_t reward;
   };
 
+  struct DaemonInfo
+  {
+    uint64_t height;
+    uint64_t target_height;
+    uint64_t difficulty;
+    uint64_t target;
+    uint64_t tx_count;
+    uint64_t tx_pool_size;
+    uint64_t alt_blocks_count;
+    uint64_t outgoing_connections_count;
+    uint64_t incoming_connections_count;
+    uint64_t white_peerlist_size;
+    uint64_t grey_peerlist_size;
+    bool testnet;
+    crypto::hash top_block_hash;
+  };
+
 }  // namespace rpc
 
 }  // namespace cryptonote
