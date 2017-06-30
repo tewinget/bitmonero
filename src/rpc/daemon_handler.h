@@ -92,6 +92,8 @@ class DaemonHandler : public RpcHandler
 
     void handle(const GetBlockHeaderByHeight::Request& req, GetBlockHeaderByHeight::Response& res);
 
+    void handle(const GetBlockHeadersByHeight::Request& req, GetBlockHeadersByHeight::Response& res);
+
     void handle(const GetBlock::Request& req, GetBlock::Response& res);
 
     void handle(const GetPeerList::Request& req, GetPeerList::Response& res);

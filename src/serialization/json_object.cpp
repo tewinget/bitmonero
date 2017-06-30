@@ -1078,6 +1078,47 @@ void fromJsonValue(const rapidjson::Value& val, rct::mgSig& sig)
   GET_FROM_JSON_OBJECT(val, sig.cc, cc);
 }
 
+void toJsonValue(rapidjson::Document& doc, const cryptonote::rpc::DaemonInfo& info, rapidjson::Value& val)
+{
+  val.SetObject();
+
+  INSERT_INTO_JSON_OBJECT(val, doc, height, info.height);
+  INSERT_INTO_JSON_OBJECT(val, doc, target_height, info.target_height);
+  INSERT_INTO_JSON_OBJECT(val, doc, difficulty, info.difficulty);
+  INSERT_INTO_JSON_OBJECT(val, doc, target, info.target);
+  INSERT_INTO_JSON_OBJECT(val, doc, tx_count, info.tx_count);
+  INSERT_INTO_JSON_OBJECT(val, doc, tx_pool_size, info.tx_pool_size);
+  INSERT_INTO_JSON_OBJECT(val, doc, alt_blocks_count, info.alt_blocks_count);
+  INSERT_INTO_JSON_OBJECT(val, doc, outgoing_connections_count, info.outgoing_connections_count);
+  INSERT_INTO_JSON_OBJECT(val, doc, incoming_connections_count, info.incoming_connections_count);
+  INSERT_INTO_JSON_OBJECT(val, doc, white_peerlist_size, info.white_peerlist_size);
+  INSERT_INTO_JSON_OBJECT(val, doc, grey_peerlist_size, info.grey_peerlist_size);
+  INSERT_INTO_JSON_OBJECT(val, doc, testnet, info.testnet);
+  INSERT_INTO_JSON_OBJECT(val, doc, top_block_hash, info.top_block_hash);
+}
+
+void fromJsonValue(const rapidjson::Value& val, cryptonote::rpc::DaemonInfo& info)
+{
+  if (!val.IsObject())
+  {
+    throw WRONG_TYPE("json object");
+  }
+
+  GET_FROM_JSON_OBJECT(val, info.height, height);
+  GET_FROM_JSON_OBJECT(val, info.target_height, target_height);
+  GET_FROM_JSON_OBJECT(val, info.difficulty, difficulty);
+  GET_FROM_JSON_OBJECT(val, info.target, target);
+  GET_FROM_JSON_OBJECT(val, info.tx_count, tx_count);
+  GET_FROM_JSON_OBJECT(val, info.tx_pool_size, tx_pool_size);
+  GET_FROM_JSON_OBJECT(val, info.alt_blocks_count, alt_blocks_count);
+  GET_FROM_JSON_OBJECT(val, info.outgoing_connections_count, outgoing_connections_count);
+  GET_FROM_JSON_OBJECT(val, info.incoming_connections_count, incoming_connections_count);
+  GET_FROM_JSON_OBJECT(val, info.white_peerlist_size, white_peerlist_size);
+  GET_FROM_JSON_OBJECT(val, info.grey_peerlist_size, grey_peerlist_size);
+  GET_FROM_JSON_OBJECT(val, info.testnet, testnet);
+  GET_FROM_JSON_OBJECT(val, info.top_block_hash, top_block_hash);
+}
+
 }  // namespace json
 
 }  // namespace cryptonote
