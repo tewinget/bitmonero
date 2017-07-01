@@ -45,10 +45,6 @@ ZmqServer::ZmqServer(RpcHandler& h) :
 
 ZmqServer::~ZmqServer()
 {
-  for (zmq::socket_t* socket : sockets)
-  {
-    delete socket;
-  }
 }
 
 void ZmqServer::serve()
@@ -56,13 +52,13 @@ void ZmqServer::serve()
 
   while (1)
   {
-    try
+    if (rep_socket)
     {
-      for (zmq::socket_t* socket : sockets)
+      try
       {
         zmq::message_t message;
 
-        while (socket->recv(&message))
+        while (rep_socket->recv(&message))
         {
           std::string message_string(reinterpret_cast<const char *>(message.data()), message.size());
 
@@ -73,15 +69,15 @@ void ZmqServer::serve()
           zmq::message_t reply(response.size());
           memcpy((void *) reply.data(), response.c_str(), response.size());
 
-          socket->send(reply);
+          rep_socket->send(reply);
           MDEBUG(std::string("Sent RPC reply: \"") + response + "\"");
-        }
 
+        }
       }
-    }
-    catch (boost::thread_interrupted& e)
-    {
-      MDEBUG("ZMQ Server thread interrupted.");
+      catch (boost::thread_interrupted& e)
+      {
+        MDEBUG("ZMQ Server thread interrupted.");
+      }
     }
     boost::this_thread::interruption_point();
   }
@@ -95,26 +91,20 @@ bool ZmqServer::addIPCSocket(std::string address, std::string port)
 
 bool ZmqServer::addTCPSocket(std::string address, std::string port)
 {
-  zmq::socket_t *new_socket = nullptr;
   try
   {
     std::string addr_prefix("tcp://");
 
-    new_socket = new zmq::socket_t(context, ZMQ_REP);
+    rep_socket.reset(new zmq::socket_t(context, ZMQ_REP));
 
-    new_socket->setsockopt(ZMQ_RCVTIMEO, DEFAULT_RPC_RECV_TIMEOUT_MS);
+    rep_socket->setsockopt(ZMQ_RCVTIMEO, DEFAULT_RPC_RECV_TIMEOUT_MS);
 
     std::string bind_address = addr_prefix + address + std::string(":") + port;
-    new_socket->bind(bind_address.c_str());
-    sockets.push_back(new_socket);
+    rep_socket->bind(bind_address.c_str());
   }
   catch (std::exception& e)
   {
     MERROR(std::string("Error creating ZMQ Socket: ") + e.what());
-    if (new_socket)
-    {
-      delete new_socket;
-    }
     return false;
   }
   return true;
