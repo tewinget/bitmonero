@@ -26,8 +26,11 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <chrono>
+
 #include "zmq_server.h"
-#include <boost/chrono/chrono.hpp>
+#include "rpc_constants.h"
+#include "misc_log_ex.h"
 
 namespace cryptonote
 {
@@ -41,13 +44,16 @@ ZmqServer::ZmqServer(RpcHandler& h) :
     running(false),
     context(DEFAULT_NUM_ZMQ_THREADS) // TODO: make this configurable
 {
+  have_new_notify_message = false;
+
+  handler.bindNotify(std::bind(&ZmqServer::notify, this, std::placeholders::_1, std::placeholders::_2));
 }
 
 ZmqServer::~ZmqServer()
 {
 }
 
-void ZmqServer::serve()
+void ZmqServer::serveRPC()
 {
 
   while (1)
@@ -83,6 +89,27 @@ void ZmqServer::serve()
   }
 }
 
+void ZmqServer::serveNotify()
+{
+  const std::chrono::milliseconds wait_time(DEFAULT_RPC_RECV_TIMEOUT_MS);
+  while (1)
+  {
+    std::unique_lock<std::mutex> lk(mutex_new_notify_message);
+
+    if (cv_new_notify_message.wait_for(lk, wait_time, [&]{return have_new_notify_message;}))
+    {
+
+      publishNotification();
+
+      have_new_notify_message = false;
+
+      lk.unlock();
+    }
+
+    boost::this_thread::interruption_point();
+  }
+}
+
 bool ZmqServer::addIPCSocket(std::string address, std::string port)
 {
   MERROR("ZmqServer::addIPCSocket not yet implemented!");
@@ -91,6 +118,10 @@ bool ZmqServer::addIPCSocket(std::string address, std::string port)
 
 bool ZmqServer::addTCPSocket(std::string address, std::string port)
 {
+  // don't mess with sockets while running, sockets aren't
+  // thread safe in zmq (though contexts are)
+  if (running) return false;
+
   try
   {
     std::string addr_prefix("tcp://");
@@ -110,10 +141,34 @@ bool ZmqServer::addTCPSocket(std::string address, std::string port)
   return true;
 }
 
+bool ZmqServer::addNotifySocket(std::string address, std::string port)
+{
+  // don't mess with sockets while running, sockets aren't
+  // thread safe in zmq (though contexts are)
+  if (running) return false;
+
+  try
+  {
+    std::string addr_prefix("tcp://");
+
+    pub_socket.reset(new zmq::socket_t(context, ZMQ_PUB));
+
+    std::string bind_address = addr_prefix + address + std::string(":") + port;
+    pub_socket->bind(bind_address.c_str());
+  }
+  catch (std::exception& e)
+  {
+    MERROR(std::string("Error creating ZMQ Socket: ") + e.what());
+    return false;
+  }
+  return true;
+}
+
 void ZmqServer::run()
 {
   running = true;
-  run_thread = boost::thread(boost::bind(&ZmqServer::serve, this));
+  rpc_thread = boost::thread(boost::bind(&ZmqServer::serveRPC, this));
+  notify_thread = boost::thread(boost::bind(&ZmqServer::serveNotify, this));
 }
 
 void ZmqServer::stop()
@@ -122,12 +177,39 @@ void ZmqServer::stop()
 
   stop_signal = true;
 
-  run_thread.interrupt();
-  run_thread.join();
+  rpc_thread.interrupt();
+  notify_thread.interrupt();
+  rpc_thread.join();
+  notify_thread.join();
 
   running = false;
 
   return;
+}
+
+void ZmqServer::notify(const std::string& notify_context_in, const std::string& notify_message_in)
+{
+  {
+    std::lock_guard<std::mutex> lk(mutex_new_notify_message);
+
+    notify_message = notify_message_in;
+    notify_context = notify_context_in;
+    have_new_notify_message = true;
+  }
+  cv_new_notify_message.notify_one();
+}
+
+void ZmqServer::publishNotification()
+{
+  if (pub_socket)
+  {
+    std::string to_send = notify_context + " " + notify_message;
+    zmq::message_t notification(to_send.size());
+    memcpy((void *) notification.data(), to_send.c_str(), to_send.size());
+
+    pub_socket->send(notification);
+    MDEBUG(std::string("Sent Notification: \"") + to_send + "\"");
+  }
 }
 
 

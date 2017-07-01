@@ -77,10 +77,22 @@ namespace daemon_args
       , std::to_string(config::ZMQ_RPC_DEFAULT_PORT)
   };
 
+  const command_line::arg_descriptor<std::string> arg_zmq_notify_bind_port = {
+    "zmq-notify-bind-port"
+      , "Port for ZMQ Notification server to listen on"
+      , std::to_string(config::ZMQ_NOTIFY_DEFAULT_PORT)
+  };
+
   const command_line::arg_descriptor<std::string> arg_zmq_testnet_rpc_bind_port = {
     "zmq-testnet-rpc-bind-port"
       , "Port for testnet ZMQ RPC server to listen on"
       , std::to_string(config::testnet::ZMQ_RPC_DEFAULT_PORT)
+  };
+
+  const command_line::arg_descriptor<std::string> arg_zmq_testnet_notify_bind_port = {
+    "zmq-testnet-notify-bind-port"
+      , "Port for testnet ZMQ Notification server to listen on"
+      , std::to_string(config::testnet::ZMQ_NOTIFY_DEFAULT_PORT)
   };
 
   const command_line::arg_descriptor<bool> arg_zmq_restricted_rpc = {

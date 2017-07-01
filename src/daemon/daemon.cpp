@@ -92,10 +92,12 @@ t_daemon::t_daemon(
   if (testnet)
   {
     zmq_rpc_bind_port = command_line::get_arg(vm, daemon_args::arg_zmq_testnet_rpc_bind_port);
+    zmq_notify_bind_port = command_line::get_arg(vm, daemon_args::arg_zmq_testnet_notify_bind_port);
   }
   else
   {
     zmq_rpc_bind_port = command_line::get_arg(vm, daemon_args::arg_zmq_rpc_bind_port);
+    zmq_notify_bind_port = command_line::get_arg(vm, daemon_args::arg_zmq_notify_bind_port);
   }
   zmq_rpc_bind_address = command_line::get_arg(vm, daemon_args::arg_zmq_rpc_bind_ip);
 }
@@ -149,11 +151,23 @@ bool t_daemon::run(bool interactive)
     cryptonote::rpc::DaemonHandler rpc_daemon_handler(mp_internals->core.get(), mp_internals->p2p.get());
     cryptonote::rpc::ZmqServer zmq_server(rpc_daemon_handler);
 
-    if (!zmq_server.addTCPSocket(zmq_rpc_bind_address, zmq_rpc_bind_port))
+    bool r = zmq_server.addTCPSocket(zmq_rpc_bind_address, zmq_rpc_bind_port);
+    if (r)
     {
-      LOG_ERROR(std::string("Failed to add TCP Socket (") + zmq_rpc_bind_address
-          + ":" + zmq_rpc_bind_port + ") to ZMQ RPC Server");
-
+      r = zmq_server.addNotifySocket(zmq_rpc_bind_address, zmq_notify_bind_port);
+      if (!r)
+      {
+        LOG_ERROR(std::string("Failed to add TCP Notify Socket (") + zmq_rpc_bind_address
+            + ":" + zmq_notify_bind_port + ") to ZMQ Server");
+      }
+    }
+    else
+    {
+      LOG_ERROR(std::string("Failed to add TCP RPC Socket (") + zmq_rpc_bind_address
+          + ":" + zmq_rpc_bind_port + ") to ZMQ Server");
+    }
+    if (!r)
+    {
       if (interactive)
       {
         rpc_commands->stop_handling();
@@ -167,8 +181,11 @@ bool t_daemon::run(bool interactive)
     MINFO("Starting ZMQ server...");
     zmq_server.run();
 
-    MINFO(std::string("ZMQ server started at ") + zmq_rpc_bind_address
+    MINFO(std::string("ZMQ RPC server started at ") + zmq_rpc_bind_address
           + ":" + zmq_rpc_bind_port + ".");
+
+    MINFO(std::string("ZMQ Notify server started at ") + zmq_rpc_bind_address
+          + ":" + zmq_notify_bind_port + ".");
 
     mp_internals->p2p.run(); // blocks until p2p goes down
 

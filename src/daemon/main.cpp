@@ -91,7 +91,9 @@ int main(int argc, char const * argv[])
       command_line::add_arg(core_settings, daemon_args::arg_max_concurrency);
       command_line::add_arg(core_settings, daemon_args::arg_zmq_rpc_bind_ip);
       command_line::add_arg(core_settings, daemon_args::arg_zmq_rpc_bind_port);
+      command_line::add_arg(core_settings, daemon_args::arg_zmq_notify_bind_port);
       command_line::add_arg(core_settings, daemon_args::arg_zmq_testnet_rpc_bind_port);
+      command_line::add_arg(core_settings, daemon_args::arg_zmq_testnet_notify_bind_port);
       command_line::add_arg(core_settings, daemon_args::arg_zmq_restricted_rpc);
 
       daemonizer::init_options(hidden_options, visible_options);

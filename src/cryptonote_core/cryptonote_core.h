@@ -53,6 +53,9 @@ DISABLE_VS_WARNINGS(4355)
 
 namespace cryptonote
 {
+
+   typedef std::function<void(const block&)> NewBlockCallback;
+
    struct test_options {
      const std::pair<uint8_t, uint64_t> *hard_forks;
    };
@@ -686,6 +689,13 @@ namespace cryptonote
       */     
      bool get_testnet() const { return m_testnet; };
 
+     /**
+      * @brief set the callback function for block notification
+      *
+      * @param callback [in] the callback function
+      */
+     void set_new_block_callback(NewBlockCallback callback);
+
    private:
 
      /**
@@ -833,6 +843,13 @@ namespace cryptonote
       */
      bool check_updates();
 
+     /**
+      * @brief call notify callback on new block
+      *
+      * @param bl the new block
+      */
+     void notify_new_block(const block& bl);
+
      bool m_test_drop_download = true; //!< whether or not to drop incoming blocks (for testing)
 
      uint64_t m_test_drop_download_height = 0; //!< height under which to drop incoming blocks, if doing so
@@ -887,6 +904,8 @@ namespace cryptonote
      tools::download_async_handle m_update_download;
      size_t m_last_update_length;
      boost::mutex m_update_mutex;
+
+     NewBlockCallback new_block_callback;
    };
 }
 

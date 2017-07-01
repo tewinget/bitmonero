@@ -52,6 +52,7 @@ using namespace epee;
 #include "blockchain_db/berkeleydb/db_bdb.h"
 #endif
 #include "ringct/rctSigs.h"
+#include "rpc/rpc_constants.h"
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
 #define MONERO_DEFAULT_LOG_CATEGORY "cn"
@@ -1002,8 +1003,14 @@ namespace cryptonote
       return false;
     }
     add_new_block(b, bvc);
-    if(update_miner_blocktemplate && bvc.m_added_to_main_chain)
-       update_miner_block_template();
+    if(bvc.m_added_to_main_chain)
+    {
+      notify_new_block(b);
+      if(update_miner_blocktemplate)
+      {
+        update_miner_block_template();
+      }
+    }
     return true;
   }
   //-----------------------------------------------------------------------------------------------
@@ -1269,5 +1276,18 @@ namespace cryptonote
   void core::graceful_exit()
   {
     raise(SIGTERM);
+  }
+
+  void core::set_new_block_callback(NewBlockCallback callback)
+  {
+    new_block_callback = callback;
+  }
+
+  void core::notify_new_block(const block& bl)
+  {
+    if (new_block_callback)
+    {
+      new_block_callback(bl);
+    }
   }
 }

@@ -40,23 +40,18 @@ class classname \
   public: \
     static const char* const name;
 
-#define BEGIN_RPC_MESSAGE_REQUEST \
-    class Request : public Message \
+#define BEGIN_RPC_MESSAGE(messageName) \
+    class messageName : public Message \
     { \
       public: \
-        Request() { } \
-        ~Request() { } \
+        messageName() { } \
+        ~messageName() { } \
         rapidjson::Value toJson(rapidjson::Document& doc) const; \
         void fromJson(rapidjson::Value& val);
 
-#define BEGIN_RPC_MESSAGE_RESPONSE \
-    class Response : public Message \
-    { \
-      public: \
-        Response() { } \
-        ~Response() { } \
-        rapidjson::Value toJson(rapidjson::Document& doc) const; \
-        void fromJson(rapidjson::Value& val);
+#define BEGIN_RPC_MESSAGE_REQUEST BEGIN_RPC_MESSAGE(Request)
+
+#define BEGIN_RPC_MESSAGE_RESPONSE BEGIN_RPC_MESSAGE(Response)
 
 #define END_RPC_MESSAGE_REQUEST };
 #define END_RPC_MESSAGE_RESPONSE };
@@ -75,6 +70,12 @@ namespace cryptonote
 
 namespace rpc
 {
+
+BEGIN_RPC_MESSAGE(NewBlockMessage);
+  static const char* const name;
+  RPC_MESSAGE_MEMBER(cryptonote::rpc::block_with_transactions, block);
+END_RPC_MESSAGE_CLASS;
+
 
 BEGIN_RPC_MESSAGE_CLASS(GetHeight);
   BEGIN_RPC_MESSAGE_REQUEST;

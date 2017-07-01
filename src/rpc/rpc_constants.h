@@ -28,14 +28,7 @@
 
 #pragma once
 
-#include <boost/thread/thread.hpp>
-#include <zmq.hpp>
 #include <string>
-#include <memory>
-#include <condition_variable>
-#include <mutex>
-
-#include "rpc_handler.h"
 
 namespace cryptonote
 {
@@ -43,53 +36,8 @@ namespace cryptonote
 namespace rpc
 {
 
-static constexpr int DEFAULT_NUM_ZMQ_THREADS = 1;
-static constexpr int DEFAULT_RPC_RECV_TIMEOUT_MS = 1000;
-
-class ZmqServer
-{
-  public:
-
-    ZmqServer(RpcHandler& h);
-
-    ~ZmqServer();
-
-    void serveRPC();
-    void serveNotify();
-
-    bool addIPCSocket(std::string address, std::string port);
-    bool addTCPSocket(std::string address, std::string port);
-
-    bool addNotifySocket(std::string address, std::string port);
-
-    void run();
-    void stop();
-
-    void notify(const std::string& notify_context_in, const std::string& notify_message_in);
-
-  private:
-    void publishNotification();
-
-    RpcHandler& handler;
-
-    volatile bool stop_signal;
-    volatile bool running;
-
-    zmq::context_t context;
-
-    boost::thread rpc_thread;
-    std::unique_ptr<zmq::socket_t> rep_socket;
-
-    boost::thread notify_thread;
-    std::unique_ptr<zmq::socket_t> pub_socket;
-
-    bool have_new_notify_message;
-    std::string notify_message;
-    std::string notify_context;
-    std::condition_variable cv_new_notify_message;
-    std::mutex mutex_new_notify_message;
-};
-
+  std::string const NOTIFY_BLOCK_PREFIX = "BLOCK";
+  std::string const NOTIFY_TRANSACTION_PREFIX = "TRANSACTION";
 
 }  // namespace cryptonote
 

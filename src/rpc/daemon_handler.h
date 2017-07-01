@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include "rpc/typedefs.h"
 #include "daemon_messages.h"
 #include "daemon_rpc_version.h"
 #include "rpc_handler.h"
@@ -50,7 +51,7 @@ class DaemonHandler : public RpcHandler
 {
   public:
 
-    DaemonHandler(cryptonote::core& c, t_p2p& p2p) : m_core(c), m_p2p(p2p) { }
+    DaemonHandler(cryptonote::core& c, t_p2p& p2p);
 
     ~DaemonHandler() { }
 
@@ -136,12 +137,18 @@ class DaemonHandler : public RpcHandler
 
     std::string handle(const std::string& request);
 
+    void bindNotify(cryptonote::rpc::NotifyCallback callback);
+
   private:
+
+    void newBlock(const cryptonote::block& block);
 
     bool getBlockHeaderByHash(const crypto::hash& hash_in, cryptonote::rpc::BlockHeaderResponse& response);
 
     cryptonote::core& m_core;
     t_p2p& m_p2p;
+
+    cryptonote::rpc::NotifyCallback notifyCallback;
 };
 
 }  // namespace rpc

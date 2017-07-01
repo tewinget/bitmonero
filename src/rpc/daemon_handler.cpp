@@ -34,12 +34,18 @@
 #include "cryptonote_basic/cryptonote_format_utils.h"
 #include "cryptonote_protocol/blobdatatype.h"
 #include "ringct/rctSigs.h"
+#include "rpc/rpc_constants.h"
 
 namespace cryptonote
 {
 
 namespace rpc
 {
+
+  DaemonHandler::DaemonHandler(cryptonote::core& c, t_p2p& p2p) : m_core(c), m_p2p(p2p)
+  {
+    m_core.set_new_block_callback(std::bind(&DaemonHandler::newBlock, this, std::placeholders::_1));
+  }
 
   void DaemonHandler::handle(const GetHeight::Request& req, GetHeight::Response& res)
   {
@@ -873,6 +879,38 @@ namespace rpc
       }
 
       return BAD_JSON(e.what());
+    }
+  }
+
+  void DaemonHandler::bindNotify(cryptonote::rpc::NotifyCallback callback)
+  {
+    notifyCallback = callback;
+  }
+
+  void DaemonHandler::newBlock(const cryptonote::block& block)
+  {
+    if (notifyCallback)
+    {
+      NewBlockMessage message;
+      message.block.block = block;
+
+      std::list<cryptonote::transaction> txs;
+      std::list<crypto::hash> missed_txs;
+
+      m_core.get_transactions(block.tx_hashes, txs, missed_txs);
+
+      if (txs.size() != block.tx_hashes.size()) return;
+
+      size_t i = 0;
+      for (const auto& tx : txs)
+      {
+        message.block.transactions[block.tx_hashes[i]] = tx;
+        i++;
+      }
+
+      FullMessage request = FullMessage::requestMessage(std::string(NewBlockMessage::name), &message);
+
+      notifyCallback(cryptonote::rpc::NOTIFY_BLOCK_PREFIX, request.getJson());
     }
   }
 

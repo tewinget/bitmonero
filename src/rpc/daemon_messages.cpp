@@ -35,6 +35,8 @@ namespace cryptonote
 namespace rpc
 {
 
+const char* const NewBlockMessage::name = "new_block";
+
 const char* const GetHeight::name = "get_height";
 const char* const GetBlocksFast::name = "get_blocks_fast";
 const char* const GetHashesFast::name = "get_hashes_fast";
@@ -63,6 +65,22 @@ const char* const GetRPCVersion::name = "get_rpc_version";
 const char* const GetPerKBFeeEstimate::name = "get_dynamic_per_kb_fee_estimate";
 
 
+
+rapidjson::Value NewBlockMessage::toJson(rapidjson::Document& doc) const
+{
+  auto val = Message::toJson(doc);
+
+  auto& al = doc.GetAllocator();
+
+  INSERT_INTO_JSON_OBJECT(val, doc, block, block);
+
+  return val;
+}
+
+void NewBlockMessage::fromJson(rapidjson::Value& val)
+{
+  GET_FROM_JSON_OBJECT(val, block, block);
+}
 
 
 rapidjson::Value GetHeight::Request::toJson(rapidjson::Document& doc) const

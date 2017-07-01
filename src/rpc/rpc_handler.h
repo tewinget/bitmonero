@@ -29,6 +29,7 @@
 #pragma once
 
 #include <string>
+#include "rpc/typedefs.h"
 
 namespace cryptonote
 {
@@ -42,6 +43,8 @@ class RpcHandler
   public:
 
     virtual std::string handle(const std::string& request) = 0;
+
+    virtual void bindNotify(std::function<void(const std::string&, const std::string&)> notifyFunction) = 0;
 
     RpcHandler() { }
 
