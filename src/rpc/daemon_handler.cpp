@@ -81,6 +81,14 @@ namespace rpc
         return;
       }
 
+      if (it->second.size() != bwt.block.tx_hashes.size())
+      {
+          res.blocks.clear();
+          res.output_indices.clear();
+          res.status = Message::STATUS_FAILED;
+          res.error_details = "incorrect number of transactions retrieved for block";
+          return;
+      }
       std::list<transaction> txs;
       for (const auto& blob : it->second)
       {
@@ -90,7 +98,7 @@ namespace rpc
           res.blocks.clear();
           res.output_indices.clear();
           res.status = Message::STATUS_FAILED;
-          res.error_details = "failed retrieving a requested block";
+          res.error_details = "failed retrieving a requested transaction";
           return;
         }
       }
@@ -766,7 +774,7 @@ namespace rpc
 
   void DaemonHandler::handle(const GetRPCVersion::Request& req, GetRPCVersion::Response& res)
   {
-    res.version = DAEMON_RPC_VERSION;
+    res.version = DAEMON_RPC_VERSION_ZMQ;
     res.status = Message::STATUS_OK;
   }
 

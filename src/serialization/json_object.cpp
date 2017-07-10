@@ -99,12 +99,17 @@ void fromJsonValue(const rapidjson::Value& val, int8_t& i)
     throw WRONG_TYPE("integer");
   }
 
-  if (val.GetInt() > 0xFF)
+  int32_t asInt = val.GetInt();
+  if (asInt > 127)
+  {
+    throw WRONG_TYPE("type too large");
+  }
+  else if (asInt < -128)
   {
     throw WRONG_TYPE("type too large");
   }
 
-  i = (int8_t) ( val.GetInt() & 0xFF);
+  i = (int8_t) (asInt);
 }
 
 void toJsonValue(rapidjson::Document& doc, const uint16_t& i, rapidjson::Value& val)
