@@ -486,6 +486,9 @@ namespace rpc
     res.info.grey_peerlist_size = m_p2p.get_peerlist_manager().get_gray_peers_count();
 
     res.info.testnet = m_core.get_testnet();
+    res.info.cumulative_difficulty = m_core.get_blockchain_storage().get_db().get_block_cumulative_difficulty(res.info.height - 1);
+    res.info.block_size_limit = m_core.get_blockchain_storage().get_current_cumulative_blocksize_limit();
+    res.info.start_time = (uint64_t)m_core.get_start_time();
 
     res.status = Message::STATUS_OK;
     res.error_details = "";
@@ -627,8 +630,6 @@ namespace rpc
     res.error_details = "RPC method not yet implemented.";
   }
 
-  //TODO: this RPC call is marked for later implementation in the old RPC,
-  //      need to sort out if it's necessary and what it should do.
   void DaemonHandler::handle(const GetPeerList::Request& req, GetPeerList::Response& res)
   {
     res.status = Message::STATUS_FAILED;
@@ -676,18 +677,6 @@ namespace rpc
   }
 
   void DaemonHandler::handle(const StopDaemon::Request& req, StopDaemon::Response& res)
-  {
-    res.status = Message::STATUS_FAILED;
-    res.error_details = "RPC method not yet implemented.";
-  }
-
-  void DaemonHandler::handle(const FastExit::Request& req, FastExit::Response& res)
-  {
-    res.status = Message::STATUS_FAILED;
-    res.error_details = "RPC method not yet implemented.";
-  }
-
-  void DaemonHandler::handle(const OutPeers::Request& req, OutPeers::Response& res)
   {
     res.status = Message::STATUS_FAILED;
     res.error_details = "RPC method not yet implemented.";

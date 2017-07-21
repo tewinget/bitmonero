@@ -1100,6 +1100,9 @@ void toJsonValue(rapidjson::Document& doc, const cryptonote::rpc::DaemonInfo& in
   INSERT_INTO_JSON_OBJECT(val, doc, grey_peerlist_size, info.grey_peerlist_size);
   INSERT_INTO_JSON_OBJECT(val, doc, testnet, info.testnet);
   INSERT_INTO_JSON_OBJECT(val, doc, top_block_hash, info.top_block_hash);
+  INSERT_INTO_JSON_OBJECT(val, doc, cumulative_difficulty, info.cumulative_difficulty);
+  INSERT_INTO_JSON_OBJECT(val, doc, block_size_limit, info.block_size_limit);
+  INSERT_INTO_JSON_OBJECT(val, doc, start_time, info.start_time);
 }
 
 void fromJsonValue(const rapidjson::Value& val, cryptonote::rpc::DaemonInfo& info)
@@ -1122,6 +1125,9 @@ void fromJsonValue(const rapidjson::Value& val, cryptonote::rpc::DaemonInfo& inf
   GET_FROM_JSON_OBJECT(val, info.grey_peerlist_size, grey_peerlist_size);
   GET_FROM_JSON_OBJECT(val, info.testnet, testnet);
   GET_FROM_JSON_OBJECT(val, info.top_block_hash, top_block_hash);
+  GET_FROM_JSON_OBJECT(val, info.cumulative_difficulty, cumulative_difficulty);
+  GET_FROM_JSON_OBJECT(val, info.block_size_limit, block_size_limit);
+  GET_FROM_JSON_OBJECT(val, info.start_time, start_time);
 }
 
 }  // namespace json

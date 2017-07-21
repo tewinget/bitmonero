@@ -99,6 +99,7 @@ rapidjson::Value GetBlocksFast::Request::toJson(rapidjson::Document& doc) const
 
   INSERT_INTO_JSON_OBJECT(val, doc, block_ids, block_ids);
   val.AddMember("start_height", start_height, al);
+  val.AddMember("prune", prune, al);
 
   return val;
 }
@@ -107,6 +108,7 @@ void GetBlocksFast::Request::fromJson(rapidjson::Value& val)
 {
   GET_FROM_JSON_OBJECT(val, block_ids, block_ids);
   GET_FROM_JSON_OBJECT(val, start_height, start_height);
+  GET_FROM_JSON_OBJECT(val, prune, prune);
 }
 
 rapidjson::Value GetBlocksFast::Response::toJson(rapidjson::Document& doc) const
