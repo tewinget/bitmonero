@@ -134,6 +134,8 @@ target_link_libraries(daemon_rpc_server
     ${Boost_THREAD_LIBRARY}
     ${ZMQ_LIB}
     ${EXTRA_LIBRARIES})
+target_include_directories(daemon_rpc_server PUBLIC ${ZMQ_INCLUDE_PATH})
+target_include_directories(obj_daemon_rpc_server PUBLIC ${ZMQ_INCLUDE_PATH})
 
 target_link_libraries(daemon_rpc_client
   LINK_PRIVATE
@@ -145,7 +147,7 @@ target_link_libraries(daemon_rpc_client
     ${Boost_THREAD_LIBRARY}
     ${ZMQ_LIB}
     ${EXTRA_LIBRARIES})
-
+target_include_directories(obj_daemon_rpc_client PRIVATE ${ZMQ_INCLUDE_PATH})
 
 add_dependencies(rpc
   version)
