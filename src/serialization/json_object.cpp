@@ -28,6 +28,7 @@
 
 #include "json_object.h"
 
+#include <limits>
 #include "string_tools.h"
 
 namespace cryptonote
@@ -35,6 +36,74 @@ namespace cryptonote
 
 namespace json
 {
+
+namespace
+{
+  template<typename Source, typename Destination>
+  constexpr bool precision_loss()
+  {
+    return
+      std::numeric_limits<Destination>::is_signed != std::numeric_limits<Source>::is_signed ||
+      std::numeric_limits<Destination>::min() > std::numeric_limits<Source>::min() ||
+      std::numeric_limits<Destination>::max() < std::numeric_limits<Source>::max();
+  }
+
+  template<typename Source, typename Type>
+  void convert_numeric(Source source, Type& i)
+  {
+    static_assert(
+      std::numeric_limits<Source>::is_signed == std::numeric_limits<Type>::is_signed,
+      "source and destination signs do not match"
+    );
+    if (source < std::numeric_limits<Type>::min())
+    {
+      throw WRONG_TYPE{"numeric underflow"};
+    }
+    if (std::numeric_limits<Type>::max() < source)
+    {
+      throw WRONG_TYPE{"numeric overflow"};
+    }
+    i = Type(source);
+  }
+
+  template<typename Type>
+  void to_int(const rapidjson::Value& val, Type& i)
+  {
+    if (!val.IsInt())
+    {
+      throw WRONG_TYPE{"integer"};
+    }
+    convert_numeric(val.GetInt(), i);
+  }
+  template<typename Type>
+  void to_int64(const rapidjson::Value& val, Type& i)
+  {
+    if (!val.IsInt64())
+    {
+      throw WRONG_TYPE{"integer"};
+    }
+    convert_numeric(val.GetInt64(), i);
+  }
+
+  template<typename Type>
+  void to_uint(const rapidjson::Value& val, Type& i)
+  {
+    if (!val.IsUint())
+    {
+      throw WRONG_TYPE{"unsigned integer"};
+    }
+    convert_numeric(val.GetUint(), i);
+  }
+  template<typename Type>
+  void to_uint64(const rapidjson::Value& val, Type& i)
+  {
+    if (!val.IsUint64())
+    {
+      throw WRONG_TYPE{"unsigned integer"};
+    }
+    convert_numeric(val.GetUint64(), i);
+  }
+}
 
 void toJsonValue(rapidjson::Document& doc, const std::string& i, rapidjson::Value& val)
 {
@@ -65,120 +134,81 @@ void fromJsonValue(const rapidjson::Value& val, bool& b)
   b = val.GetBool();
 }
 
-void toJsonValue(rapidjson::Document& doc, const uint8_t& i, rapidjson::Value& val)
+void fromJsonValue(const rapidjson::Value& val, unsigned char& i)
+{
+  to_uint(val, i);
+}
+
+void fromJsonValue(const rapidjson::Value& val, char& i)
+{
+  to_int(val, i);
+}
+
+void fromJsonValue(const rapidjson::Value& val, signed char& i)
+{
+  to_int(val, i);
+}
+
+void fromJsonValue(const rapidjson::Value& val, unsigned short& i)
+{
+  to_uint(val, i);
+}
+
+void fromJsonValue(const rapidjson::Value& val, short& i)
+{
+  to_int(val, i);
+}
+
+void toJsonValue(rapidjson::Document& doc, const unsigned int i, rapidjson::Value& val)
 {
   val = rapidjson::Value(i);
 }
 
-
-void fromJsonValue(const rapidjson::Value& val, uint8_t& i)
+void fromJsonValue(const rapidjson::Value& val, unsigned int& i)
 {
-  if (!val.IsUint())
-  {
-    throw WRONG_TYPE("unsigned integer");
-  }
-
-  if (val.GetUint() > 0xFF)
-  {
-    throw WRONG_TYPE("type too large");
-  }
-
-  i = (uint8_t)( val.GetUint() & 0xFF);
+  to_uint(val, i);
 }
 
-void toJsonValue(rapidjson::Document& doc, const int8_t& i, rapidjson::Value& val)
+void toJsonValue(rapidjson::Document& doc, const int i, rapidjson::Value& val)
 {
   val = rapidjson::Value(i);
 }
 
-
-void fromJsonValue(const rapidjson::Value& val, int8_t& i)
+void fromJsonValue(const rapidjson::Value& val, int& i)
 {
-  if (!val.IsInt())
-  {
-    throw WRONG_TYPE("integer");
-  }
-
-  int32_t asInt = val.GetInt();
-  if (asInt > 127)
-  {
-    throw WRONG_TYPE("type too large");
-  }
-  else if (asInt < -128)
-  {
-    throw WRONG_TYPE("type too large");
-  }
-
-  i = (int8_t) (asInt);
+  to_int(val, i);
 }
 
-void toJsonValue(rapidjson::Document& doc, const uint16_t& i, rapidjson::Value& val)
+void toJsonValue(rapidjson::Document& doc, const unsigned long long i, rapidjson::Value& val)
 {
-  val = rapidjson::Value(i);
+  static_assert(!precision_loss<unsigned long long, std::uint64_t>(), "precision loss");
+  val = rapidjson::Value(std::uint64_t(i));
 }
 
-
-void fromJsonValue(const rapidjson::Value& val, uint16_t& i)
+void fromJsonValue(const rapidjson::Value& val, unsigned long long& i)
 {
-  if (!val.IsUint())
-  {
-    throw WRONG_TYPE("unsigned integer");
-  }
-
-  if (val.GetUint() > 0xFFFF)
-  {
-    throw WRONG_TYPE("type too large");
-  }
-
-  i = (uint16_t) ( val.GetUint() & 0xFFFF);
+  to_uint64(val, i);
 }
 
-void toJsonValue(rapidjson::Document& doc, const int32_t& i, rapidjson::Value& val)
+void toJsonValue(rapidjson::Document& doc, const long long i, rapidjson::Value& val)
 {
-  val = rapidjson::Value(i);
+  static_assert(!precision_loss<long long, std::int64_t>(), "precision loss");
+  val = rapidjson::Value(std::int64_t(i));
 }
 
-
-void fromJsonValue(const rapidjson::Value& val, int32_t& i)
+void fromJsonValue(const rapidjson::Value& val, long long& i)
 {
-  if (!val.IsInt())
-  {
-    throw WRONG_TYPE("signed integer");
-  }
-
-  i = val.GetInt();
+  to_int64(val, i);
 }
 
-void toJsonValue(rapidjson::Document& doc, const uint32_t& i, rapidjson::Value& val)
+void fromJsonValue(const rapidjson::Value& val, unsigned long& i)
 {
-  val = rapidjson::Value(i);
+  to_uint64(val, i);
 }
 
-
-void fromJsonValue(const rapidjson::Value& val, uint32_t& i)
+void fromJsonValue(const rapidjson::Value& val, long& i)
 {
-  if (!val.IsUint())
-  {
-    throw WRONG_TYPE("unsigned integer");
-  }
-
-  i = val.GetUint();
-}
-
-void toJsonValue(rapidjson::Document& doc, const uint64_t& i, rapidjson::Value& val)
-{
-  val = rapidjson::Value(i);
-}
-
-
-void fromJsonValue(const rapidjson::Value& val, uint64_t& i)
-{
-  if (!val.IsUint64())
-  {
-    throw WRONG_TYPE("unsigned integer");
-  }
-
-  i = val.GetUint64();
+  to_int64(val, i);
 }
 
 void toJsonValue(rapidjson::Document& doc, const cryptonote::transaction& tx, rapidjson::Value& val)
