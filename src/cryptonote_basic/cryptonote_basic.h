@@ -159,6 +159,8 @@ namespace cryptonote
   public:
     // tx information
     size_t   version;
+
+    // not used after version 2, but remains for compatibility
     uint64_t unlock_time;  //number of block (or time), used as a limitation like: spend this tx not early then block/time
 
     std::vector<txin_v> vin;
@@ -189,6 +191,8 @@ namespace cryptonote
   public:
     std::vector<std::vector<crypto::signature> > signatures; //count signatures  always the same as inputs count
     rct::rctSig rct_signatures;
+
+    std::vector<uint64_t> output_unlock_times;
 
     // hash cash
     mutable crypto::hash hash;
@@ -265,6 +269,10 @@ namespace cryptonote
           }
         }
       }
+      if (version > 2)
+      {
+        FIELD(output_unlock_times)
+      }
     END_SERIALIZE()
 
     template<bool W, template <bool> class Archive>
@@ -285,6 +293,10 @@ namespace cryptonote
           if (!r || !ar.stream().good()) return false;
           ar.end_object();
         }
+      }
+      if (version > 2)
+      {
+        FIELD(output_unlock_times)
       }
       return true;
     }
@@ -311,6 +323,7 @@ namespace cryptonote
   {
     version = 1;
     unlock_time = 0;
+    output_unlock_times.clear();
     vin.clear();
     vout.clear();
     extra.clear();
