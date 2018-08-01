@@ -136,9 +136,31 @@ namespace service_nodes
     return false;
   }
 
+  static bool is_unlock_time_valid(uint64_t unlock_time, uint64_t block_height)
+  {
+    bool result = unlock_time < CRYPTONOTE_MAX_BLOCK_NUMBER && unlock_time >= block_height + STAKING_REQUIREMENT_LOCK_BLOCKS;
+    return result;
+  }
+
   bool service_node_list::reg_tx_has_correct_unlock_time(const cryptonote::transaction& tx, uint64_t block_height) const
   {
-    return tx.unlock_time < CRYPTONOTE_MAX_BLOCK_NUMBER && tx.unlock_time >= block_height + STAKING_REQUIREMENT_LOCK_BLOCKS;
+    uint64_t const *unlock_times = &tx.unlock_time;
+    size_t num_unlock_times = 1;
+
+    if (tx.version == cryptonote::transaction::version_3_per_output_unlock_times)
+    {
+      unlock_times     = tx.output_unlock_times.data();
+      num_unlock_times = tx.output_unlock_times.size();
+    }
+
+    bool result = false;
+    for (size_t i = 0; i < num_unlock_times && !result; ++i)
+    {
+      uint64_t unlock_time = unlock_times[i];
+      result = is_unlock_time_valid(unlock_time, block_height);
+    }
+
+    return result;
   }
 
   bool service_node_list::reg_tx_extract_fields(const cryptonote::transaction& tx, cryptonote::account_public_address& address, crypto::public_key& service_node_key, crypto::public_key& tx_pub_key) const
@@ -167,6 +189,11 @@ namespace service_nodes
   bool service_node_list::is_reg_tx_staking_output(const cryptonote::transaction& tx, int i, uint64_t block_height, crypto::key_derivation derivation, hw::device& hwdev) const
   {
     if (tx.vout[i].target.type() != typeid(cryptonote::txout_to_key))
+    {
+      return false;
+    }
+
+    if (tx.version == cryptonote::transaction::version_3_per_output_unlock_times && !is_unlock_time_valid(tx.output_unlock_times[i], block_height))
     {
       return false;
     }
@@ -256,7 +283,7 @@ namespace service_nodes
 
     crypto::public_key tx_pub_key, service_node_key;
     cryptonote::account_public_address service_node_address;
-    
+
     if (!reg_tx_extract_fields(tx, service_node_address, service_node_key, tx_pub_key))
     {
       return false;
