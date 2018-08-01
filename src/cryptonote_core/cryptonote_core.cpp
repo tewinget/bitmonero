@@ -682,11 +682,12 @@ namespace cryptonote
     bad_semantics_txes_lock.unlock();
 
     int version = m_blockchain_storage.get_current_hard_fork_version();
-    unsigned int max_tx_version = version == 1 ? 1 : version < 8 ? 2 : 3;
+    unsigned int max_tx_version = (version == 1) ? 1 : (version < 9)
+      ? transaction::version_2
+      : transaction::version_3_per_output_unlock_times;
 
     if (tx.version == 0 || tx.version > max_tx_version)
     {
-      // v3 is the latest one we know
       tvc.m_verifivation_failed = true;
       return false;
     }
@@ -823,7 +824,7 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   bool core::check_tx_semantic(const transaction& tx, bool keeped_by_block) const
   {
-    if(!tx.vin.size() && tx.version != transaction::version_3_deregister_tx)
+    if(!tx.vin.size() && !tx.is_deregister_tx())
     {
       MERROR_VER("tx with empty inputs, rejected for tx id= " << get_transaction_hash(tx));
       return false;
@@ -841,7 +842,7 @@ namespace cryptonote
       return false;
     }
 
-    if (tx.version == transaction::version_2)
+    if (tx.version >= transaction::version_2)
     {
       if (tx.rct_signatures.outPk.size() != tx.vout.size())
       {
@@ -893,7 +894,7 @@ namespace cryptonote
       return false;
     }
 
-    if (tx.version == transaction::version_2) // ringct signatures check verifies amounts match
+    if (tx.version >= transaction::version_2 && !tx.is_deregister_tx()) // ringct signatures check verifies amounts match
     {
       const rct::rctSig &rv = tx.rct_signatures;
       switch (rv.type) {

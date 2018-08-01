@@ -204,7 +204,7 @@ namespace service_nodes
 
   bool service_node_list::is_deregistration_tx(const cryptonote::transaction& tx, cryptonote::account_public_address &address) const
   {
-    if (tx.version != cryptonote::transaction::version_3_deregister_tx)
+    if (!tx.is_deregister_tx())
     {
         return false;
     }
