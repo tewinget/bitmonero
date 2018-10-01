@@ -681,7 +681,7 @@ namespace nodetool
     boost::archive::portable_binary_oarchive a(p2p_data);
     a << *this;
     return true;
-    CATCH_ENTRY_L0("blockchain_storage::save", false);
+    CATCH_ENTRY_L0("p2p_data::save", false);
 
     return true;
   }
@@ -1754,12 +1754,21 @@ namespace nodetool
       //try ping to be sure that we can add this peer to peer_list
       try_ping(arg.node_data, context, [peer_id_l, port_l, context, this]()
       {
-        CHECK_AND_ASSERT_MES(context.m_remote_address.get_type_id() == epee::net_utils::ipv4_network_address::ID, void(),
-            "Only IPv4 addresses are supported here");
+        CHECK_AND_ASSERT_MES(context.m_remote_address.get_type_id() == epee::net_utils::ipv4_network_address::ID || context.m_remote_address.get_type_id() == epee::net_utils::ipv6_network_address::ID, void(),
+            "Only IPv4 or IPv6 addresses are supported here");
         //called only(!) if success pinged, update local peerlist
         peerlist_entry pe;
         const epee::net_utils::network_address na = context.m_remote_address;
-        pe.adr = epee::net_utils::ipv4_network_address(na.as<epee::net_utils::ipv4_network_address>().ip(), port_l);
+
+	if (context.m_remote_address.get_type_id() == epee::net_utils::ipv4_network_address::ID)
+	{
+	  pe.adr = epee::net_utils::ipv4_network_address(na.as<epee::net_utils::ipv4_network_address>().ip(), port_l);
+	}
+	else
+	{
+	  pe.adr = epee::net_utils::ipv6_network_address(na.as<epee::net_utils::ipv6_network_address>().ip(), port_l);
+	}
+
         time_t last_seen;
         time(&last_seen);
         pe.last_seen = static_cast<int64_t>(last_seen);
