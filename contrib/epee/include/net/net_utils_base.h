@@ -235,6 +235,32 @@ namespace net_utils
 					}
 					break;
 				}
+				case ipv6_network_address::ID:
+				{
+					if (!is_store)
+					{
+						const_cast<network_address&>(this_ref) = ipv6_network_address{"", 0};
+						auto &addr = this_ref.template as_mutable<ipv6_network_address>();
+						if (epee::serialization::selector<is_store>::serialize(addr, stg, hparent_section, "addr"))
+							MDEBUG("Found as addr: " << this_ref.str());
+						else if (epee::serialization::selector<is_store>::serialize(addr, stg, hparent_section, "template as<ipv6_network_address>()"))
+							MDEBUG("Found as template as<ipv6_network_address>(): " << this_ref.str());
+						else if (epee::serialization::selector<is_store>::serialize(addr, stg, hparent_section, "template as_mutable<ipv6_network_address>()"))
+							MDEBUG("Found as template as_mutable<ipv6_network_address>(): " << this_ref.str());
+						else
+						{
+							MWARNING("Address not found");
+							return false;
+						}
+					}
+					else
+					{
+						auto &addr = this_ref.template as_mutable<ipv6_network_address>();
+						if (!epee::serialization::selector<is_store>::serialize(addr, stg, hparent_section, "addr"))
+							return false;
+					}
+					break;
+				}
 				default: MERROR("Unsupported network address type: " << (unsigned)type); return false;
 			}
 		END_KV_SERIALIZE_MAP()
