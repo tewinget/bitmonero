@@ -844,11 +844,12 @@ PRAGMA_WARNING_DISABLE_VS(4355)
   }
   //---------------------------------------------------------------------------------
   template<class t_protocol_handler>
-  bool boosted_tcp_server<t_protocol_handler>::init_server(uint32_t port, const std::string address, const std::string address_v6)
+  bool boosted_tcp_server<t_protocol_handler>::init_server(uint32_t port, const std::string address, uint32_t port_ipv6, const std::string address_v6, bool no_ipv6)
   {
     TRY_ENTRY();
     m_stop_signal_sent = false;
     m_port = port;
+    m_port_ipv6 = port_ipv6;
     m_address = address;
     m_address_v6 = address_v6;
 
@@ -876,9 +877,10 @@ PRAGMA_WARNING_DISABLE_VS(4355)
 	    boost::asio::placeholders::error));
     }
 
+    if (!no_ipv6)
     {
       boost::asio::ip::tcp::resolver resolver(io_service_);
-      boost::asio::ip::tcp::resolver::query query(address_v6, boost::lexical_cast<std::string>(port), boost::asio::ip::tcp::resolver::query::canonical_name);
+      boost::asio::ip::tcp::resolver::query query(address_v6, boost::lexical_cast<std::string>(port_ipv6), boost::asio::ip::tcp::resolver::query::canonical_name);
       boost::asio::ip::tcp::endpoint endpoint = *resolver.resolve(query);
       if (endpoint.protocol() != boost::asio::ip::tcp::v6())
       {
@@ -891,7 +893,7 @@ PRAGMA_WARNING_DISABLE_VS(4355)
       acceptor_v6.bind(endpoint);
       acceptor_v6.listen();
       boost::asio::ip::tcp::endpoint binded_endpoint = acceptor_v6.local_endpoint();
-      m_port = binded_endpoint.port();
+      m_port_ipv6 = binded_endpoint.port();
       MDEBUG("start accept ipv6");
       new_connection_v6.reset(new connection<t_protocol_handler>(io_service_, m_config, m_sock_count, m_sock_number, m_pfilter, m_connection_type));
       acceptor_v6.async_accept(new_connection_v6->socket(),
@@ -916,15 +918,25 @@ PRAGMA_WARNING_DISABLE_VS(4355)
 PUSH_WARNINGS
 DISABLE_GCC_WARNING(maybe-uninitialized)
   template<class t_protocol_handler>
-  bool boosted_tcp_server<t_protocol_handler>::init_server(const std::string port, const std::string& address, const std::string address_v6)
+  bool boosted_tcp_server<t_protocol_handler>::init_server(const std::string port,  const std::string& address, const std::string& port_ipv6, const std::string address_v6, bool no_ipv6)
   {
     uint32_t p = 0;
+    uint32_t p6 = 0;
 
     if (port.size() && !string_tools::get_xtype_from_string(p, port)) {
       MERROR("Failed to convert port no = " << port);
       return false;
     }
-    return this->init_server(p, address, address_v6);
+    if (port_ipv6.size() && !string_tools::get_xtype_from_string(p6, port_ipv6))
+    {
+      MERROR("Failed to convert port no = " << port_ipv6);
+      return false;
+    }
+    else if (port_ipv6.size() == 0)
+    {
+      p6 = p;
+    }
+    return this->init_server(p, address, p6, address_v6, no_ipv6);
   }
 POP_WARNINGS
   //---------------------------------------------------------------------------------
