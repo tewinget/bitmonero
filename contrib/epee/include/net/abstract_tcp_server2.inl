@@ -879,6 +879,8 @@ PRAGMA_WARNING_DISABLE_VS(4355)
 
     if (!no_ipv6)
     {
+      if (port_ipv6 == 0) port_ipv6 = m_port; // default arg means bind to same port as ipv4
+
       boost::asio::ip::tcp::resolver resolver(io_service_);
       boost::asio::ip::tcp::resolver::query query(address_v6, boost::lexical_cast<std::string>(port_ipv6), boost::asio::ip::tcp::resolver::query::canonical_name);
       boost::asio::ip::tcp::endpoint endpoint = *resolver.resolve(query);
