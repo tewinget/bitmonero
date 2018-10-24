@@ -89,6 +89,48 @@ namespace net_utils
 	inline bool operator>=(const ipv4_network_address& lhs, const ipv4_network_address& rhs) noexcept
 	{ return !lhs.less(rhs); }
 
+	class ipv6_network_address
+	{
+		std::string m_ip;
+		uint16_t m_port;
+
+	public:
+		ipv6_network_address(const std::string& ip, uint16_t port) noexcept
+			: m_ip(ip), m_port(port) {}
+
+		bool equal(const ipv6_network_address& other) const noexcept;
+		bool less(const ipv6_network_address& other) const noexcept;
+		constexpr bool is_same_host(const ipv6_network_address& other) const noexcept
+		{ return ip() == other.ip(); }
+
+		constexpr std::string ip() const noexcept { return m_ip; }
+		constexpr uint16_t port() const noexcept { return m_port; }
+		std::string str() const;
+		std::string host_str() const;
+		bool is_loopback() const;
+		bool is_local() const;
+		static constexpr uint8_t get_type_id() noexcept { return ID; }
+
+		static const uint8_t ID = 2;
+		BEGIN_KV_SERIALIZE_MAP()
+			KV_SERIALIZE(m_ip)
+			KV_SERIALIZE(m_port)
+		END_KV_SERIALIZE_MAP()
+	};
+
+	inline bool operator==(const ipv6_network_address& lhs, const ipv6_network_address& rhs) noexcept
+	{ return lhs.equal(rhs); }
+	inline bool operator!=(const ipv6_network_address& lhs, const ipv6_network_address& rhs) noexcept
+	{ return !lhs.equal(rhs); }
+	inline bool operator<(const ipv6_network_address& lhs, const ipv6_network_address& rhs) noexcept
+	{ return lhs.less(rhs); }
+	inline bool operator<=(const ipv6_network_address& lhs, const ipv6_network_address& rhs) noexcept
+	{ return !rhs.less(lhs); }
+	inline bool operator>(const ipv6_network_address& lhs, const ipv6_network_address& rhs) noexcept
+	{ return rhs.less(lhs); }
+	inline bool operator>=(const ipv6_network_address& lhs, const ipv6_network_address& rhs) noexcept
+	{ return !lhs.less(rhs); }
+
 	class network_address
 	{
 		struct interface

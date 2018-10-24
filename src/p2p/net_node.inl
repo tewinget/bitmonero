@@ -379,7 +379,9 @@ namespace nodetool
       }
       else
       {
-        MWARNING("IPv6 unsupported, skip '" << host << "' -> " << endpoint.address().to_v6().to_string(ec));
+        epee::net_utils::network_address na{epee::net_utils::ipv6_network_address{endpoint.address().to_v6().to_string(), endpoint.port()}};
+        seed_nodes.push_back(na);
+        MINFO("Added node: " << na.str());
       }
     }
     return true;
@@ -923,15 +925,26 @@ namespace nodetool
         << (last_seen_stamp ? epee::misc_utils::get_time_interval_string(time(NULL) - last_seen_stamp):"never")
         << ")...");
 
-    CHECK_AND_ASSERT_MES(na.get_type_id() == epee::net_utils::ipv4_network_address::ID, false,
-        "Only IPv4 addresses are supported here");
-    const epee::net_utils::ipv4_network_address &ipv4 = na.as<const epee::net_utils::ipv4_network_address>();
-
     typename net_server::t_connection_context con = AUTO_VAL_INIT(con);
-    bool res = m_net_server.connect(epee::string_tools::get_ip_string_from_int32(ipv4.ip()),
-      epee::string_tools::num_to_string_fast(ipv4.port()),
-      m_config.m_net_config.connection_timeout,
-      con);
+    bool res;
+    if (na.get_type_id() == epee::net_utils::ipv4_network_address::ID)
+    {
+      const epee::net_utils::ipv4_network_address &ipv4 = na.as<const epee::net_utils::ipv4_network_address>();
+
+      res = m_net_server.connect(epee::string_tools::get_ip_string_from_int32(ipv4.ip()),
+	epee::string_tools::num_to_string_fast(ipv4.port()),
+	m_config.m_net_config.connection_timeout,
+	con);
+    }
+    else
+    {
+      const epee::net_utils::ipv6_network_address &ipv6 = na.as<const epee::net_utils::ipv6_network_address>();
+
+      res = m_net_server.connect(ipv6.ip(),
+	epee::string_tools::num_to_string_fast(ipv6.port()),
+	m_config.m_net_config.connection_timeout,
+	con);
+    }
 
     if(!res)
     {
@@ -1554,17 +1567,36 @@ namespace nodetool
     if(!node_data.my_port)
       return false;
 
-    CHECK_AND_ASSERT_MES(context.m_remote_address.get_type_id() == epee::net_utils::ipv4_network_address::ID, false,
-        "Only IPv4 addresses are supported here");
+    CHECK_AND_ASSERT_MES(context.m_remote_address.get_type_id() == epee::net_utils::ipv4_network_address::ID || 
+	context.m_remote_address.get_type_id() == epee::net_utils::ipv6_network_address::ID, false,
+        "Only IPv4 and IPv6 addresses are supported here");
 
-    const epee::net_utils::network_address na = context.m_remote_address;
-    uint32_t actual_ip = na.as<const epee::net_utils::ipv4_network_address>().ip();
-    if(!m_peerlist.is_host_allowed(context.m_remote_address))
-      return false;
-    std::string ip = epee::string_tools::get_ip_string_from_int32(actual_ip);
-    std::string port = epee::string_tools::num_to_string_fast(node_data.my_port);
-    epee::net_utils::network_address address{epee::net_utils::ipv4_network_address(actual_ip, node_data.my_port)};
-    peerid_type pr = node_data.peer_id;
+    std::string ip;
+    std::string port;
+    epee::net_utils::network_address address;
+    peerid_type pr;
+
+    if (context.m_remote_address.get_type_id() == epee::net_utils::ipv4_network_address::ID)
+    {
+      const epee::net_utils::network_address na = context.m_remote_address;
+      uint32_t actual_ip = na.as<const epee::net_utils::ipv4_network_address>().ip();
+      if(!m_peerlist.is_host_allowed(context.m_remote_address))
+	return false;
+      ip = epee::string_tools::get_ip_string_from_int32(actual_ip);
+      port = epee::string_tools::num_to_string_fast(node_data.my_port);
+      address = epee::net_utils::network_address{epee::net_utils::ipv4_network_address(actual_ip, node_data.my_port)};
+      pr = node_data.peer_id;
+    }
+    else
+    {
+      const epee::net_utils::network_address na = context.m_remote_address;
+      ip = na.as<const epee::net_utils::ipv6_network_address>().ip();
+      if(!m_peerlist.is_host_allowed(context.m_remote_address))
+	return false;
+      port = epee::string_tools::num_to_string_fast(node_data.my_port);
+      address = epee::net_utils::network_address{epee::net_utils::ipv6_network_address(ip, node_data.my_port)};
+      pr = node_data.peer_id;
+    }
     bool r = m_net_server.connect_async(ip, port, m_config.m_net_config.ping_connection_timeout, [cb, /*context,*/ address, pr, this](
       const typename net_server::t_connection_context& ping_context,
       const boost::system::error_code& ec)->bool
