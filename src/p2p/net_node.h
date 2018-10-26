@@ -212,7 +212,10 @@ namespace nodetool
     bool is_peer_used(const peerlist_entry& peer);
     bool is_peer_used(const anchor_peerlist_entry& peer);
     bool is_addr_connected(const epee::net_utils::network_address& peer);
-    void add_upnp_port_mapping(uint32_t port);
+    void add_upnp_port_mapping_impl(uint32_t port, bool ipv6=false);
+    void add_upnp_port_mapping_v4(uint32_t port);
+    void add_upnp_port_mapping_v6(uint32_t port);
+    void add_upnp_port_mapping(uint32_t port, bool ipv4=true, bool ipv6=false);
     void delete_upnp_port_mapping(uint32_t port);
     template<class t_callback>
     bool try_ping(basic_node_data& node_data, p2p_connection_context& context, const t_callback &cb);

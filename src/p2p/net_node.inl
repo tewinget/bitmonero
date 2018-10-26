@@ -593,7 +593,13 @@ namespace nodetool
 
     // add UPnP port mapping
     if(!m_no_igd)
-      add_upnp_port_mapping(m_listening_port);
+    {
+      add_upnp_port_mapping_v4(m_listening_port);
+      if (!m_no_ipv6)
+      {
+	add_upnp_port_mapping_v6(m_listening_port);
+      }
+    }
 
     return res;
   }
@@ -2079,16 +2085,19 @@ namespace nodetool
   }
 
   template<class t_payload_net_handler>
-  void node_server<t_payload_net_handler>::add_upnp_port_mapping(uint32_t port)
+  void node_server<t_payload_net_handler>::add_upnp_port_mapping_impl(uint32_t port, bool ipv6) // if ipv6 false, do ipv4
   {
-    MDEBUG("Attempting to add IGD port mapping.");
+    std::string ipversion = ipv6 ? "(IPv6)" : "(IPv4)";
+    MDEBUG("Attempting to add IGD port mapping " << ipversion << ".");
     int result;
+    const int ipv6_arg = ipv6 ? 1 : 0;
+
 #if MINIUPNPC_API_VERSION > 13
     // default according to miniupnpc.h
     unsigned char ttl = 2;
-    UPNPDev* deviceList = upnpDiscover(1000, NULL, NULL, 0, 0, ttl, &result);
+    UPNPDev* deviceList = upnpDiscover(1000, NULL, NULL, 0, ipv6_arg, ttl, &result);
 #else
-    UPNPDev* deviceList = upnpDiscover(1000, NULL, NULL, 0, 0, &result);
+    UPNPDev* deviceList = upnpDiscover(1000, NULL, NULL, 0, ipv6_arg, &result);
 #endif
     UPNPUrls urls;
     IGDdatas igdData;
@@ -2122,6 +2131,25 @@ namespace nodetool
     } else {
       MINFO("No IGD was found.");
     }
+  }
+
+  template<class t_payload_net_handler>
+  void node_server<t_payload_net_handler>::add_upnp_port_mapping_v4(uint32_t port)
+  {
+    add_upnp_port_mapping_impl(port, false);
+  }
+
+  template<class t_payload_net_handler>
+  void node_server<t_payload_net_handler>::add_upnp_port_mapping_v6(uint32_t port)
+  {
+    add_upnp_port_mapping_impl(port, true);
+  }
+
+  template<class t_payload_net_handler>
+  void node_server<t_payload_net_handler>::add_upnp_port_mapping(uint32_t port, bool ipv4, bool ipv6)
+  {
+    if (ipv4) add_upnp_port_mapping_v4(port);
+    if (ipv6) add_upnp_port_mapping_v6(port);
   }
 
   template<class t_payload_net_handler>
