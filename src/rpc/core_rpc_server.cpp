@@ -203,6 +203,11 @@ namespace cryptonote
     return true;
   }
   //------------------------------------------------------------------------------------------------------------------------------
+  bool core_rpc_server::on_get_service_node_list(const COMMAND_RPC_GET_SERVICE_NODE_LIST::request& req, COMMAND_RPC_GET_SERVICE_NODE_LIST::response& res)
+  {
+    return true;
+  }
+  //------------------------------------------------------------------------------------------------------------------------------
   static cryptonote::blobdata get_pruned_tx_blob(cryptonote::transaction &tx)
   {
     std::stringstream ss;
