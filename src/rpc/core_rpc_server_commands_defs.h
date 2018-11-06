@@ -951,7 +951,7 @@ namespace cryptonote
 
 
   //-----------------------------------------------
-  struct COMMAND_RPC_GET_SERVICE_NODE_LIST
+  struct COMMAND_RPC_GET_ALL_SERVICE_NODE_KEYS
   {
     struct request
     {
@@ -961,7 +961,10 @@ namespace cryptonote
 
     struct response
     {
+      std::vector<crypto::public_key> keys;
+
       BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_CONTAINER_POD_AS_BLOB(keys)
       END_KV_SERIALIZE_MAP()
     };
   };
